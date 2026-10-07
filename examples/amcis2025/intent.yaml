@@ -1,0 +1,78 @@
+research_question: >
+  RQ1: What are the most prominent contemporary technology trajectories in the software industry?
+  RQ2: How are they expected to influence work in software development?
+
+method: gioia
+
+stance: >
+  Information systems researchers at Finnish universities, studying digital transformation and the
+  changing nature of work. The view is macro-level: not one company's adoption of one technology,
+  but where the software industry as a whole is heading and what that means for the people who do
+  software development. The informants are treated as experts whose role gives them an overview of
+  the field (an expert interview study in the sense of Meuser & Nagel 2009): their accounts are
+  the data, reported as their views, not judged. The researchers share the informants' language and
+  know the Finnish software industry from the inside, which helps interpretation and is also a
+  reason to watch for taking things for granted.
+
+prior_research: >
+  Digital transformation (DT) is a major strand of IS research: a process that aims to improve an
+  entity by triggering significant changes to its properties through combinations of information,
+  computing, communication and connectivity technologies (Vial 2019). Its effects reach from society
+  to organisations to individuals. Software is both a driver of DT and changed by it, so changes in
+  the software industry tend to cascade into other industries.
+
+  Technology-driven change is seen as a main driver of the changing nature of work (World Bank 2018).
+  Software development orchestration, the way software is made and by whom, is described as in
+  constant flux, and IS scholars have been called to follow its emerging trends and trajectories
+  (Maruping & Matook 2020).
+
+  Earlier work has identified trends in software engineering mostly indirectly: from job
+  advertisements (Gurcan & Kose 2017; Gurcan & Cagiltay 2019), from bibliometric analyses of
+  research (Wong et al. 2021), or from studies of particular development paradigms. Less is known
+  about how people who lead software work in industry and academia see these trajectories, and
+  what they expect them to mean for work.
+
+sensitizing_concepts: >
+  Cultural lag theory (Ogburn 1957, 1966) is the theoretical lens. It distinguishes material culture
+  (physical and digital artefacts: technologies, products, services, all software) from nonmaterial
+  culture (ideas, beliefs, practices, ways of working, skills, roles, organisation). Its central
+  postulate is that material culture changes faster than nonmaterial culture, which adjusts over
+  time; the delay is the cultural lag (for example, the time it takes to hire, retrain and change
+  working practices). The theory is not technological determinism: it claims that change spreads
+  gradually from technology to culture, not that outcomes are fixed (Bimber 1990; Dafoe 2015). It
+  is a macro-level theory, suited to trends across an industry rather than single adoption cases.
+
+  Use the lens at the 2nd order and above. While coding 1st-order concepts, set it aside and code
+  what informants say.
+
+study_context: >
+  Interviews: 17 transcripts from an expert interview study. Experts were recruited by snowball
+  sampling with three criteria: a prominent and distinctive position in the software industry or in
+  academia for at least five years; work focused on software development in some way; and little
+  overlap with other informants in role, competence and background. They include, among others,
+  technology leaders and CTOs, software experts and architects, AI and analytics specialists and
+  consultants, a cybersecurity expert, and professors and researchers in software engineering and
+  AI. Most are Finnish and work in Finland or in international companies.
+
+  The interviews were done online in the first quarter of 2021, lasted 45 to 90 minutes, and were
+  conducted in Finnish by one interviewer. They were thematic interviews on two themes: (1) trends
+  and changes in software development (the most prominent technology trends, how they show in
+  practice, cultural shifts and changes in employment in recent years); and (2) drivers and
+  consequences of those trends (key drivers, related technologies, implications for the work of
+  software engineers, for developer roles, and for the industry, with time horizons such as "in ten
+  years").
+
+  Many interviews also include a part in which the interviewer showed four software development
+  lifecycle models on screen (waterfall, spiral, Scrum / agile, DevOps) and asked the same
+  questions about each. Mentioning a model because the interviewer asked is not a trend; code it when
+  the informant describes a change in how software is built or how work is done.
+
+  Unit of 1st-order coding: technology trends and trajectories that informants describe, and what
+  they expect them to mean for work. A technology, tool or method merely mentioned is not a trend.
+  Ask what is changing, in which direction, and for whom.
+
+  Transcripts are professional verbatim transcriptions of spoken, colloquial Finnish. Speakers:
+  K = interviewer, V = informant. Marks: "," short pause; ".." turn left unfinished; "(-)" missing
+  word or part of a word; "(--)" missing passage; "(word)" unclear word or passage; "[...]"
+  transcriber's comment; "[pp]" overlapping speech; "[hp]" quiet speech; "[ep]" unclear speech.
+  Quotes stay in Finnish exactly as transcribed; labels and descriptions are written in English.

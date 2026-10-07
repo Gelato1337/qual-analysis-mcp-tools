@@ -1,0 +1,30 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "qual-analysis-mcp-tools"
+version = "0.3.0"
+description = "A memory server for qualitative analysis: a TypeDB ontology the agent cannot break, behind an MCP server."
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.11"
+dependencies = [
+    "rapidfuzz>=3.0",
+    "pyyaml>=6.0",
+    "typedb-driver>=3.12",
+    "mcp>=1.10",
+]
+
+[project.optional-dependencies]
+docling = ["docling>=2.100"]
+dev = ["pytest>=8"]
+
+[project.scripts]
+qls = "qls.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["qls"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
