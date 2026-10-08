@@ -1,6 +1,7 @@
 # Qual analysis MCP tools
 
-Design: [docs/pipeline.md](docs/pipeline.md). Grew out of [Qual LLM Studio](https://github.com/Gelato1337/qual-llm-studio)
+**New here? Start with [How it works, in plain words](docs/how-it-works.md):** the steps in order, what is
+checked, and where the researcher can step in, without technical detail. Design: [docs/pipeline.md](docs/pipeline.md). Grew out of [Qual LLM Studio](https://github.com/Gelato1337/qual-llm-studio)
 (the Gradio tool and two earlier pipelines stay there).
 
 A memory server for qualitative analysis: **a strict ontology the agent cannot break, behind an MCP server; the method itself stays open.**
