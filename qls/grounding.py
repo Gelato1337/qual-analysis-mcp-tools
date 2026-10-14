@@ -6,7 +6,7 @@ context and compared across runs by position. Order of attempts:
 1. exact substring
 2. same words, ignoring case and whitespace differences
 3. fuzzy best-matching substring (rapidfuzz partial_ratio_alignment),
-   accepted at >= threshold (the AMCIS pipeline used 85 with Levenshtein)
+   accepted at >= threshold (earlier pipelines used 85 with Levenshtein)
 """
 
 from __future__ import annotations

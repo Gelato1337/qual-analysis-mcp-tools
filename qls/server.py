@@ -89,8 +89,13 @@ def method_tool(session: Session, name: str):
     for f in fields:
         if f.required:
             add(f.param, str)
+    group = session.m.group_of(a.type) if a.kind == "create_group" else None
     if a.kind == "create_code":
         add("quotes", list[dict[str, Any]])
+        if a.into:
+            add(a.into_param, list[dict[str, Any]])
+    elif group and group.min == 0:
+        pass   # a group that may start empty: its members are optional (added below)
     else:
         add(a.members_param, list[dict[str, Any]])
         if a.answers == "required":
@@ -100,6 +105,10 @@ def method_tool(session: Session, name: str):
             add(f.param, str | None, None)
     if a.kind == "create_code":
         add("source", str | None, None)
+    if group and group.min == 0:
+        add(a.members_param, list[dict[str, Any]] | None, None)
+        if a.answers == "required":
+            add("answers", str)
     if a.kind == "create_group" and a.answers == "optional":
         add("answers", str | None, None)
 

@@ -93,7 +93,7 @@ current stage. A stage change is an event, so every stage boundary is a fork poi
 ```bash
 qls stage r1 next                                  # researcher: move to the next stage
 qls run fork r1 --at-stage themes --as r1-h        # branch where grouping began: all concepts, no themes
-qls agent r1 --task first_order --sources E07      # one isolated Claude Code session for one task
+qls agent r1 --task first_order --sources P01      # one isolated Claude Code session for one task
 qls pipeline r1 --auto                             # every stage, AI-only: a fixed policy stands in at checkpoints
 qls site r1                                        # one standalone HTML: graph, step by step, interview reader, log
 ```

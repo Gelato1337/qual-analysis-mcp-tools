@@ -26,8 +26,8 @@ Agents:
     qls mcp-config RUN --actor agent:NAME                 .mcp.json entry for Claude Code / Cowork
     qls tool RUN NAME '{"json": "args"}' --actor A        any tool from the shell
     qls tools RUN --actor A                               list tools
-    qls agent RUN --task TASK [--sources E01 ...]         one isolated agent session (Claude Code)
-    qls pipeline RUN --auto [--seed N] [--until STAGE]    all stages, AI-only policy at checkpoints
+    qls agent RUN --task TASK [--sources P01 ...]         one isolated agent session (Claude Code)
+    qls pipeline RUN --auto --calibration K [--batch N] [--seed S] [--until STAGE]   all stages, AI-only policy
     qls sessions RUN | provenance RUN [--session ID]      who did what, with which prompt and model, having read what
 
 Results:
@@ -266,7 +266,7 @@ def cmd_pipeline(a):
 
     if not a.auto:
         raise QlsError("pipeline runs every stage with the AI-only policy; pass --auto. For human review, use `qls agent` per task.")
-    pipeline(_p(a), a.run, a.seed, a.calibration, a.batch, a.actor or "agent:scholar-1", model=a.model, until=a.until,
+    pipeline(_p(a), a.run, a.calibration, a.seed, a.batch, a.actor or "agent:scholar-1", model=a.model, until=a.until,
              say=lambda m: print(m, flush=True))
 
 
@@ -478,8 +478,8 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("run")
     sp.add_argument("--auto", action="store_true")
     sp.add_argument("--seed", type=int, default=1)
-    sp.add_argument("--calibration", type=int, default=3)
-    sp.add_argument("--batch", type=int, default=7)
+    sp.add_argument("--calibration", type=int, help="k: interviews coded in the calibration session (methods with a calibration stage)")
+    sp.add_argument("--batch", type=int, default=0, help="n: interviews per batch (0 = no batches, one review after all)")
     sp.add_argument("--until", help="stop when the run reaches this stage")
     sp.add_argument("--actor")
     sp.add_argument("--model", default="opus")

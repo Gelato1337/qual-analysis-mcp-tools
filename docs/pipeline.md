@@ -1,7 +1,6 @@
 # The pipeline: a memory server for qualitative analysis
 
-Status: first version implemented and run end to end on 17 interviews (October 2026); see README and
-docs/smoke-tests/. Grew out of Qual LLM Studio (github.com/Gelato1337/qual-llm-studio), whose earlier
+Status: first version implemented (October 2026); see README. Grew out of Qual LLM Studio (github.com/Gelato1337/qual-llm-studio), whose earlier
 pipelines (fixed stages; recipe-in-the-server) stay there.
 
 ## One idea
@@ -190,7 +189,7 @@ Design consequences:
 - Sources and verified quotes are shared across intents; interpretation is not.
 - Runs under different intents must not see each other's memos or codebook (contamination).
 
-First experiment on the 17 interviews: 2 questions × 2 methods × 3–5 replicates, plus the controls.
+A first experiment: 2 questions × 2 methods × 3–5 replicates, plus the controls.
 A human baseline is needed for same-intent spread too (the original coding plus one independent coder).
 
 ## Operational ontology (the Palantir pattern)

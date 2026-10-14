@@ -53,6 +53,9 @@ class Action:
     doc: str = ""
     members_param: str | None = None
     answers: str = "no"    # no | optional | required
+    into: str | None = None          # create_code only: the group type the new code is placed in, in the same call
+    into_param: str | None = None    # the parameter holding [{"id", "reason"}] for those groups
+    into_min: int = 1                # how many groups the new code must be placed in
 
 
 @dataclass
@@ -152,13 +155,16 @@ def load_method(name_or_path: str) -> Method:
                   for k, v in (spec or {}).items()] for t, spec in (raw.get("fields") or {}).items()}
     groups = [Group(**g) for g in raw.get("groups") or []]
     actions = {k: Action(name=k, kind=v["kind"], type=v["type"], doc=" ".join(str(v.get("doc", "")).split()),
-                         members_param=v.get("members_param"), answers=v.get("answers", "no"))
+                         members_param=v.get("members_param"), answers=v.get("answers", "no"),
+                         into=v.get("into"), into_param=v.get("into_param"), into_min=int(v.get("into_min", 1)))
                for k, v in (raw.get("actions") or {}).items()}
     for a in actions.values():
         if a.kind not in ("create_code", "create_group"):
             raise QlsError(f"action {a.name}: unknown kind {a.kind!r}")
         if a.kind == "create_group" and (not a.members_param or not any(g.type == a.type for g in groups)):
             raise QlsError(f"action {a.name}: a group action needs members_param and a groups entry for {a.type}")
+        if a.into and (not a.into_param or not any(g.type == a.into and g.member_type == a.type for g in groups)):
+            raise QlsError(f"action {a.name}: 'into' needs into_param and a groups entry grouping {a.type} into {a.into}")
     stages = (yaml.safe_load(files.get("stages.yaml", "")) or {}).get("stages") or []
     for s in stages:
         s.setdefault("create", [])

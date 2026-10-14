@@ -34,51 +34,68 @@ def _num(oid: str) -> tuple:
     return (head, int(n)) if n.isdigit() else (oid, 0)
 
 
+TYPE_NAMES = {   # display names; any other type is shown by its own name
+    "concept": ("1st-order concept", "1st-order concepts"), "theme": ("2nd-order theme", "2nd-order themes"),
+    "dimension": ("aggregate dimension", "aggregate dimensions"),
+    "segment": ("coded segment", "coded segments"), "content-category": ("category", "categories"),
+}
+
+
 def collect(p: Project, run: str) -> dict:
     s = Session(p, run, "reviewer:site")
-    r = s.run
+    r, m = s.run, s.m
     srcs = {sid: p.ledger.source(sid, v) for sid, v in r["config"]["sources"].items()}
+    levels = m.levels()                       # bottom-up: the code type, then each group type
+    code_t = levels[0]
 
-    # -- concepts and their evidence
-    labels, descs = _attr(s, "concept", "label"), _attr(s, "concept", "description")
-    invivo, cbv = _attr(s, "concept", "in-vivo"), _attr(s, "concept", "codebook-version")
-    actor, event = _attr(s, "concept", "actor"), _attr(s, "concept", "event")
-    concepts = {i: {"id": i, "label": labels[i], "description": descs.get(i, ""), "in_vivo": invivo.get(i, ""),
-                    "codebook_version": cbv.get(i), "actor": actor.get(i), "event": event.get(i), "quotes": [],
-                    "theme": None, "theme_reason": None} for i in labels}
-    ev = _rows(s, "match $c isa concept, has id $i; $e isa evidence (claim: $c, quote: $q); $e has reason $r; "
+    # -- every object of the method's types, with its fields
+    objects: dict[str, dict] = {}
+    for lv, typ in enumerate(levels):
+        lab = _attr(s, typ, "label")
+        common = {k: _attr(s, typ, a) for k, a in (("description", "description"), ("event", "event"), ("actor", "actor"))}
+        fields = {f.param: _attr(s, typ, f.attr) for f in m.fields.get(typ, []) if f.param not in ("label", "description")}
+        cbv = _attr(s, typ, "codebook-version") if typ == code_t else {}
+        for i in lab:
+            objects[i] = {"id": i, "type": typ, "level": lv, "label": lab[i], "description": common["description"].get(i, ""),
+                          "event": common["event"].get(i), "actor": common["actor"].get(i),
+                          "fields": {k: v[i] for k, v in fields.items() if i in v}, "codebook_version": cbv.get(i),
+                          "members": [], "in": [], "quotes": [], "sources": []}
+
+    # -- evidence for codes
+    ev = _rows(s, f"match $c isa {code_t}, has id $i; $e isa evidence (claim: $c, quote: $q); $e has reason $r; "
                   "$q has id $qid, has start-offset $a, has end-offset $b, has unit $u; quoting (source: $s, quote: $q); "
                   "$s has id $sid; select $i, $r, $qid, $a, $b, $u, $sid;")
     for e in ev:
         src = srcs[e["sid"]]
-        concepts[e["i"]]["quotes"].append({"id": e["qid"], "source": e["sid"], "unit": e["u"], "start": int(e["a"]), "end": int(e["b"]),
-                                           "text": src["text"][int(e["a"]):int(e["b"])], "reason": e["r"]})
-    for c in concepts.values():
-        c["quotes"].sort(key=lambda q: (q["source"], q["unit"]))
-        c["sources"] = sorted({q["source"] for q in c["quotes"]})
+        objects[e["i"]]["quotes"].append({"id": e["qid"], "source": e["sid"], "unit": e["u"], "start": int(e["a"]), "end": int(e["b"]),
+                                          "text": src["text"][int(e["a"]):int(e["b"])], "reason": e["r"]})
+    for o in objects.values():
+        if o["type"] == code_t:
+            o["quotes"].sort(key=lambda q: (q["source"], q["start"]))
+            o["sources"] = sorted({q["source"] for q in o["quotes"]})
 
-    # -- themes and dimensions
-    def groups(typ):
-        lab, des = _attr(s, typ, "label"), _attr(s, typ, "description")
-        ev_ = _attr(s, typ, "event")
-        return {i: {"id": i, "label": lab[i], "description": des.get(i, ""), "event": ev_.get(i), "members": []} for i in lab}
-
-    themes, dims = groups("theme"), groups("dimension")
-    for m in _rows(s, "match $t isa theme, has id $t_id; $r isa theme-membership (theme: $t, concept: $c); $r has reason $why; "
-                      "$c has id $cid; select $t_id, $cid, $why;"):
-        themes[m["t_id"]]["members"].append({"id": m["cid"], "reason": m["why"]})
-        concepts[m["cid"]]["theme"], concepts[m["cid"]]["theme_reason"] = m["t_id"], m["why"]
-    for t in themes.values():
-        t["members"].sort(key=lambda x: _num(x["id"]))
-        t["dimension"] = None
-    for m in _rows(s, "match $d isa dimension, has id $d_id; $r isa dimension-membership (dimension: $d, theme: $t); "
-                      "$r has reason $why; $t has id $tid; select $d_id, $tid, $why;"):
-        dims[m["d_id"]]["members"].append({"id": m["tid"], "reason": m["why"]})
-        themes[m["tid"]]["dimension"], themes[m["tid"]]["dimension_reason"] = m["d_id"], m["why"]
-    for d in dims.values():
-        d["members"].sort(key=lambda x: _num(x["id"]))
-    for a in _rows(s, "match $d isa dimension, has id $i; $r isa answering (answer: $d); $r has reason $w; select $i, $w;"):
-        dims[a["i"]]["answers"] = a["w"]
+    # -- groupings, both directions, each with its reason
+    for g in m.groups:
+        for x in _rows(s, f"match $g isa {g.type}, has id $gid; $r isa {g.relation} ({g.group_role}: $g, {g.member_role}: $x); "
+                          f"$r has reason $why; $x has id $mid; select $gid, $mid, $why;"):
+            if x["gid"] in objects and x["mid"] in objects:
+                objects[x["gid"]]["members"].append({"id": x["mid"], "reason": x["why"]})
+                objects[x["mid"]]["in"].append({"id": x["gid"], "reason": x["why"]})
+    for typ in levels[1:]:
+        for a in _rows(s, f"match $d isa {typ}, has id $i; $r isa answering (answer: $d); $r has reason $w; select $i, $w;"):
+            objects[a["i"]]["answers"] = a["w"]
+    for o in objects.values():
+        o["members"].sort(key=lambda x: _num(x["id"]))
+        o["in"].sort(key=lambda x: _num(x["id"]))
+    for o in objects.values():   # codes: which groups at every level above they end up in
+        if o["type"] == code_t:
+            seen, todo = [], [x["id"] for x in o["in"]]
+            while todo:
+                gid = todo.pop(0)
+                if gid not in seen:
+                    seen.append(gid)
+                    todo += [x["id"] for x in objects[gid]["in"]]
+            o["under"] = seen
 
     # -- memos
     memos = {}
@@ -131,7 +148,7 @@ def collect(p: Project, run: str) -> dict:
     events = []
     for e in p.ledger.events(run):
         prm = e["params"]
-        short = {k: v for k, v in prm.items() if k not in ("quotes", "examples", "concepts", "themes", "text", "summary", "intent")}
+        short = {k: v for k, v in prm.items() if k not in ("quotes", "examples", "concepts", "themes", "segments", "categories", "text", "summary", "intent")}
         events.append({"seq": e["seq"], "action": e["action"], "actor": e["actor"], "stage": e["meta"].get("stage"),
                        "session": e["meta"].get("session"), "reason": e["reason"], "ts": e["ts"], "ids": e["result"].get("ids", []),
                        "params": short, "summary": prm.get("summary"), "questions": prm.get("questions"),
@@ -155,9 +172,11 @@ def collect(p: Project, run: str) -> dict:
                      "turns": [{"start": u["start"], "end": u["end"], "role": u["role"], "speaker": u["speaker"]}
                                for u in src["units"] if u["kind"] == "turn"],
                      "segments": sum(1 for u in src["units"] if u["kind"] == "segment")} for sid, src in sorted(srcs.items())],
-        "concepts": sorted(concepts.values(), key=lambda c: _num(c["id"])),
-        "themes": sorted(themes.values(), key=lambda t: _num(t["id"])),
-        "dimensions": sorted(dims.values(), key=lambda d: _num(d["id"])),
+        "project": p.cfg("project", "name", p.root.name),
+        "method": {"name": m.name, "title": m.title, "code_type": code_t,
+                   "levels": [{"type": x, "name": TYPE_NAMES.get(x, (x, x + "s"))[0], "plural": TYPE_NAMES.get(x, (x, x + "s"))[1]}
+                              for x in levels]},
+        "objects": sorted(objects.values(), key=lambda o: (o["level"], _num(o["id"]))),
         "memos": sorted(memos.values(), key=lambda x: _num(x["id"])),
         "codebook": sorted(cb.values(), key=lambda x: _num(x["id"])),
         "sessions": sessions,
@@ -187,8 +206,8 @@ def redact(data: dict, names: list[str]) -> dict:
     pat = re.compile(r"\b(" + "|".join(map(re.escape, names)) + r")\b", re.I)
     for s in data["sources"]:
         s["text"] = pat.sub(lambda m: "\u2588" * len(m.group(0)), s["text"])
-    for c in data["concepts"]:
-        for q in c["quotes"]:
+    for c in data["objects"]:
+        for q in c.get("quotes", []):
             q["text"] = pat.sub(lambda m: "\u2588" * len(m.group(0)), q["text"])
 
     def walk(x):

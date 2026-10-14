@@ -202,3 +202,39 @@ def test_stages_gate_agents_not_researchers(p):
     assert memo["meta"]["stage"] == "themes"  # the stage in force when the action was taken
     assert all("ts" not in x for x in a.history("T-1")["events"])
     assert a.guide("concept")["ok"] and not a.guide("nope")["ok"]
+
+
+def test_content_analysis_method(tmp_path):
+    from qls.project import Project
+    from qls.session import Session
+
+    p = Project.init(tmp_path / "ca", f"ca{os.getpid()}_{tmp_path.name[-6:]}")
+    try:
+        for f in sorted(EX.glob("*.txt")):
+            p.ingest(f)
+        p.new_run("c1", method="content_analysis", intent={"research_question": RQ, "method": "content_analysis"})
+        a, h = Session(p, "c1", "agent:a"), Session(p, "c1", "human:t")
+        assert a.stage() == "frame"
+        k1 = a.act("add_category", label="External accelerating", description="d", origin="guide")
+        k2 = a.act("add_category", label="Customers", description="d", origin="guide")
+        assert k1["ok"] and k2["ok"] and k1["id"] == "K-1"          # a category may start empty
+        bad = a.act("code_segment", label="x", quotes=[{"source": "P01", "text": Q_RELEASE, "reason": "r"}],
+                    categories=[{"id": "K-1", "reason": "r"}])
+        assert not bad["ok"] and "not part of stage frame" in bad["error"]
+        h.set_stage("guide_coding")
+        none = a.act("code_segment", label="x", quotes=[{"source": "P01", "text": Q_RELEASE, "reason": "r"}])
+        assert not none["ok"] and "categories" in none["error"]
+        s = a.act("code_segment", label="clients want faster releases", period="2020", direction="accelerating",
+                  quotes=[{"source": "P01", "text": Q_RELEASE, "reason": "says it"}],
+                  categories=[{"id": "K-1", "reason": "outside pressure"}, {"id": "K-2", "reason": "about clients"}])
+        assert s["ok"] and s["categories"] == ["K-1", "K-2"]          # one passage, two categories
+        assert not a.act("add_category", label="y", description="d", origin="emergent")["ok"]   # not in this stage
+        h.set_stage("emergent")
+        e = a.act("add_category", label="Release cadence", description="d", origin="emergent", parent="K-1")
+        assert e["ok"] and a.add_to_group(e["id"], s["id"], "about cadence")["ok"]
+        opn = {c["check"] for c in a.check()["open"]}                  # every check query is valid TypeQL
+        assert "segment_categorised" not in opn and "case_description" in opn
+    finally:
+        for r in p.ledger.runs():
+            p.graph.drop(p.db_name(r["id"]))
+        p.graph.close()

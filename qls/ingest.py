@@ -7,7 +7,7 @@ The transcript parser recognises "Speaker: text" lines (also **Speaker:**
 from Markdown exports and VTT <v Speaker> tags), decides who the interviewer
 is, and turns every informant turn into one or more segments. Each segment
 remembers the interviewer question it answers, which is shown as context and
-used to flag concepts that only echo the interview guide (AMCIS challenge #2).
+used to flag concepts that only echo the interview guide.
 """
 
 from __future__ import annotations
@@ -141,7 +141,7 @@ def parse_turns(text: str) -> list[tuple[str | None, str]]:
     speaker is None for unlabelled text and SECTION for section titles (headings
     that are not speaker lines). Handles "Name: text", a label alone on its line
     followed by the text, labels rendered as Markdown headings, and a full name
-    used once ("Thomas Haigh:") for a speaker otherwise labelled by surname.
+    used once ("Claire Moreau:") for a speaker otherwise labelled by surname.
     """
     lines = _clean_lines(text)
 
@@ -211,7 +211,7 @@ def assign_roles(turns: list[tuple[str | None, str]], interviewer_labels: list[s
     roles = {s: ("interviewer" if s.lower() in wanted or INTERVIEWER_HINT.search(s) else "informant") for s in set(labels)}
     if "interviewer" not in roles.values() and len(roles) >= 2:
         names = list(roles)
-        # 1. explicit: "... I am interviewing Kapor" / "interview with Kapor"
+        # 1. explicit: "... I am interviewing Lindqvist" / "interview with Lindqvist"
         for spk, text in turns:
             if spk not in roles:
                 continue

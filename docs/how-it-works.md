@@ -78,13 +78,6 @@ Either way, a correction can be an edit to the current version or a new branch. 
 - The AI approving its own rules, or skipping ahead a step
 - Deleting anything: every change is logged, with who made it and why
 
-## Example
-
-17 expert interviews, AI alone, about 1.5 hours: 510 concepts, 42 themes, 6 dimensions. At
-calibration the AI asked: *"Should I merge similar ideas from different people?"* Nobody answered
-in the AI-only run, so it kept them all separate. That question is the first fork to try.
-
 ---
 
-Technical details: [README](../README.md) · design: [pipeline.md](pipeline.md) · the example run:
-[smoke-tests/2026-10-07-experts-ai1.md](smoke-tests/2026-10-07-experts-ai1.md)
+Technical details: [README](../README.md) · design: [pipeline.md](pipeline.md) · projects: [projects.md](projects.md)

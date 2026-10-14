@@ -182,37 +182,47 @@ function md(src) {
   }
   return out.join("");
 }
-const byId = Object.fromEntries([...D.concepts, ...D.themes, ...D.dimensions, ...D.memos, ...D.codebook].map(o => [o.id, o]));
-const num = id => +String(id).split("-").pop();
-const lvl = id => id.startsWith("C-") ? "lvl1" : id.startsWith("T-") ? "lvl2" : id.startsWith("D-") ? "lvl3" : "";
+/* ---------- the method's structure: works for any method (levels bottom-up, codes at level 0) ---------- */
+const LV = D.method.levels, CODE = LV[0].type;
+const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+const OBJ = D.objects;
+const byId = Object.fromEntries([...OBJ, ...D.memos, ...D.codebook].map(o => [o.id, o]));
+const codes = OBJ.filter(o => o.type === CODE);
+const ofType = t => OBJ.filter(o => o.type === t);
+const lvName = (o, plural) => { const l = LV.find(x => x.type === o.type); return l ? (plural ? l.plural : l.name) : o.type; };
+const lvl = id => { const o = byId[id]; return o && o.level !== undefined ? `lvl${Math.min(3, o.level + 1)}` : ""; };
 const tag = id => `<span class="tag ${lvl(id)}">${esc(id)}</span>`;
 const clink = id => byId[id] ? `<button class="clink" data-open="${esc(id)}">${esc(byId[id].label || id)}</button>` : esc(id);
 const memosAbout = id => D.memos.filter(m => m.about.includes(id));
 const srcIds = D.sources.map(s => s.id);
 const fmtTime = t => t ? t.replace("T", " ").slice(0, 16) : "";
 const STAGES = D.docs.stages.map(s => s.id);
-const STAGE_NAME = {calibrate: "Calibration", first_order: "1st-order concepts", themes: "2nd-order themes", dimensions: "Aggregate dimensions", revise: "Revision and grounded model"};
+const STAGE_NAME = Object.fromEntries(D.docs.stages.map(s => [s.id, s.title || s.id]));
+const FIELD_NAME = {in_vivo: "in vivo", period: "when", direction: "direction", origin: "origin", parent: "refines"};
+const fieldChips = o => Object.entries(o.fields || {}).filter(([k, v]) => v && k !== "in_vivo")
+  .map(([k, v]) => `<span class="chip">${esc(FIELD_NAME[k] || k)}: ${k === "parent" && byId[v] ? esc(v) : esc(v)}</span>`).join(" ");
+const placedIn = o => (o.in || []).map(x => `${tag(x.id)} ${clink(x.id)}`).join(" · ");
 
 /* ---------- header ---------- */
 (function header() {
-  const q = D.concepts.reduce((n, c) => n + c.quotes.length, 0);
+  const q = codes.reduce((n, c) => n + c.quotes.length, 0);
   const cost = D.sessions.reduce((n, s) => n + (s.cost || 0), 0);
   const fork = D.run.parent ? ` · fork of <code>${esc(D.run.parent)}</code> after event #${D.run.fork_at}` : "";
   $("#top").innerHTML = `
-    <div class="eyebrow">Gioia analysis · run <code>${esc(D.run.id)}</code>${fork} · ${esc(D.run.note || "")}</div>
-    <h1>Software industry trajectories, 17 expert interviews</h1>
+    <div class="eyebrow">${esc(D.method.title)} · run <code>${esc(D.run.id)}</code>${fork} · ${esc(D.run.note || "")}</div>
+    <h1>${esc(D.project)}</h1>
     <div class="rq">${esc(D.intent.research_question)}</div>
     <div class="stats">
-      ${[[D.sources.length, "interviews"], [D.concepts.length, "1st-order concepts"], [q, "verified quotes"], [D.themes.length, "2nd-order themes"],
-         [D.dimensions.length, "aggregate dimensions"], [D.memos.length, "memos"], [D.codebook.length, "codebook entries"],
+      ${[[D.sources.length, "interviews"], ...LV.map(l => [ofType(l.type).length, l.plural]), [q, "verified quotes"],
+         [D.memos.length, "memos"], ...(D.codebook.length ? [[D.codebook.length, "codebook entries"]] : []),
          [D.sessions.length, "agent sessions"], ["$" + cost.toFixed(0), "API-equivalent cost"]]
         .map(([n, l]) => `<div class="stat"><b>${n}</b><span>${l}</span></div>`).join("")}
     </div>`;
 })();
 
 /* ---------- tabs ---------- */
-const VIEWS = [["structure", "Data structure"], ["process", "Step by step"], ["interviews", "Interviews"], ["codebook", "Codebook"],
-               ["instructions", "Instructions"], ["log", "Decision log"]];
+const VIEWS = [["structure", "Data structure"], ["process", "Step by step"], ["interviews", "Interviews"],
+               ...(D.codebook.length ? [["codebook", "Codebook"]] : []), ["instructions", "Instructions"], ["log", "Decision log"]];
 $("#tabs").innerHTML = VIEWS.map(([id, l]) => `<button role="tab" data-tab="${id}" aria-selected="false">${l}</button>`).join("");
 $("#views").innerHTML = VIEWS.map(([id]) => `<section class="view" id="v-${id}" hidden></section>`).join("");
 const built = {};
@@ -227,32 +237,27 @@ $("#tabs").addEventListener("click", e => { const b = e.target.closest("[data-ta
 /* ---------- object dialog ---------- */
 function openObj(id) {
   const o = byId[id]; if (!o) return;
-  let h = "";
   const memoList = ms => ms.length ? `<div class="memos">${ms.map(memoCard).join("")}</div>` : `<p class="muted">No memos.</p>`;
-  if (id.startsWith("C-")) {
-    const t = o.theme && byId[o.theme], d = t && t.dimension && byId[t.dimension];
-    h = `<div class="dhead"><div class="eyebrow">1st-order concept ${tag(id)} · from ${o.sources.join(", ")} · codebook v${o.codebook_version ?? "–"} · event #${o.event}</div>
-         <h2>${esc(o.label)}</h2>${o.in_vivo ? `<div class="muted">In vivo: <i>${esc(o.in_vivo)}</i></div>` : ""}</div>
-         <div class="dbody"><p>${esc(o.description)}</p>
-         <div class="eyebrow">Quotes and why they show this concept</div>
+  let h = "";
+  if (o.type === CODE) {
+    h = `<div class="dhead"><div class="eyebrow">${esc(lvName(o))} ${tag(id)} · from ${o.sources.join(", ")}${o.codebook_version != null ? ` · codebook v${o.codebook_version}` : ""} · event #${o.event}</div>
+         <h2>${esc(o.label)}</h2>${o.fields.in_vivo ? `<div class="muted">In vivo: <i>${esc(o.fields.in_vivo)}</i></div>` : ""}<div>${fieldChips(o)}</div></div>
+         <div class="dbody">${o.description ? `<p>${esc(o.description)}</p>` : ""}
+         <div class="eyebrow">Quotes and why they show this</div>
          ${o.quotes.map(q => `<div class="quote"><q>${esc(q.text)}</q><span class="why"><span class="chip">${esc(q.unit)}</span> ${esc(q.reason)}</span></div>`).join("")}
          <div class="eyebrow">Placed in</div>
-         ${t ? `<div class="why">${tag(t.id)} ${clink(t.id)}<br><b>Reason:</b> ${esc(o.theme_reason)}</div>` : `<p class="muted">Not in a theme.</p>`}
-         ${d ? `<div class="why">${tag(d.id)} ${clink(d.id)}</div>` : ""}
-         <div class="eyebrow">Memos about this concept</div>${memoList(memosAbout(id))}</div>`;
-  } else if (id.startsWith("T-")) {
-    const d = o.dimension && byId[o.dimension];
-    h = `<div class="dhead"><div class="eyebrow">2nd-order theme ${tag(id)} · ${o.members.length} concepts · event #${o.event}</div><h2>${esc(o.label)}</h2></div>
+         ${o.in.length ? o.in.map(x => `<div class="why">${tag(x.id)} ${clink(x.id)}<br><b>Reason:</b> ${esc(x.reason)}</div>`).join("") : `<p class="muted">Not placed.</p>`}
+         <div class="eyebrow">Memos about it</div>${memoList(memosAbout(id))}</div>`;
+  } else if (o.level !== undefined) {
+    const kids = OBJ.filter(x => x.fields && x.fields.parent === id);
+    h = `<div class="dhead"><div class="eyebrow">${esc(lvName(o))} ${tag(id)} · ${o.members.length} members · event #${o.event}</div><h2>${esc(o.label)}</h2><div>${fieldChips(o)}</div></div>
          <div class="dbody"><p>${esc(o.description)}</p>
-         ${d ? `<div class="why">In ${tag(d.id)} ${clink(d.id)}<br><b>Reason:</b> ${esc(o.dimension_reason)}</div>` : ""}
-         <div class="eyebrow">Concepts and why each belongs</div>
+         ${o.answers ? `<div class="eyebrow">How it answers the research question</div><p>${esc(o.answers)}</p>` : ""}
+         ${o.in.length ? `<div class="eyebrow">Placed in</div>${o.in.map(x => `<div class="why">${tag(x.id)} ${clink(x.id)}<br><b>Reason:</b> ${esc(x.reason)}</div>`).join("")}` : ""}
+         ${kids.length ? `<div class="eyebrow">Finer categories under it</div><ul class="clist">${kids.map(k => `<li>${tag(k.id)}<div>${clink(k.id)} <span class="muted mono">${k.members.length}</span></div></li>`).join("")}</ul>` : ""}
+         <div class="eyebrow">Members and why each belongs</div>
          <ul class="clist">${o.members.map(m => `<li>${tag(m.id)}<div>${clink(m.id)} <span class="chip">${(byId[m.id]?.sources || []).join(" ")}</span><div class="why">${esc(m.reason)}</div></div></li>`).join("")}</ul>
-         <div class="eyebrow">Memos about this theme</div>${memoList(memosAbout(id))}</div>`;
-  } else if (id.startsWith("D-")) {
-    h = `<div class="dhead"><div class="eyebrow">Aggregate dimension ${tag(id)}</div><h2>${esc(o.label)}</h2></div>
-         <div class="dbody"><p>${esc(o.description)}</p><div class="eyebrow">How it answers the research question</div><p>${esc(o.answers)}</p>
-         <div class="eyebrow">Themes</div><ul class="clist">${o.members.map(m => `<li>${tag(m.id)}<div>${clink(m.id)}<div class="why">${esc(m.reason)}</div></div></li>`).join("")}</ul>
-         <div class="eyebrow">Memos, including the negative-case search</div>${memoList(memosAbout(id))}</div>`;
+         <div class="eyebrow">Memos about it</div>${memoList(memosAbout(id))}</div>`;
   } else if (id.startsWith("M-")) {
     h = `<div class="dhead"><div class="eyebrow">Memo ${esc(id)}</div></div><div class="dbody">${memoCard(o)}</div>`;
   } else if (id.startsWith("CB-")) {
@@ -281,7 +286,7 @@ function readerHTML(sid) { return `<div class="reader" data-reader="${esc(sid)}"
 function initReader(box) {
   if (box.dataset.ready) return; box.dataset.ready = "1";
   const sid = box.dataset.reader, src = D.sources.find(s => s.id === sid);
-  const cs = D.concepts.filter(c => c.sources.includes(sid)).sort((a, b) => firstStart(a, sid) - firstStart(b, sid));
+  const cs = codes.filter(c => c.sources.includes(sid)).sort((a, b) => firstStart(a, sid) - firstStart(b, sid));
   const ranges = cs.flatMap(c => c.quotes.filter(q => q.source === sid).map(q => [q.start, q.end, c.id]));
   let html = "";
   for (const t of src.turns) {
@@ -298,13 +303,14 @@ function initReader(box) {
   }
   const rtext = box.querySelector(".rtext"), rside = box.querySelector(".rside");
   rtext.innerHTML = html;
-  rside.innerHTML = `<div class="eyebrow">${cs.length} concepts from ${sid}, in the order they appear</div>` + cs.map(c => {
-    const t = c.theme && byId[c.theme], d = t && t.dimension && byId[t.dimension];
+  rside.innerHTML = `<div class="eyebrow">${cs.length} ${esc(LV[0].plural)} from ${sid}, in the order they appear</div>` + cs.map(c => {
+    const top = (c.under || []).filter(g => byId[g] && byId[g].level > 1);
     return `<div class="ccard" data-cid="${c.id}"><div class="chead">${tag(c.id)}<b>${esc(c.label)}</b></div>
-      <div class="why">${esc(c.description)}${c.in_vivo ? ` <i>(${esc(c.in_vivo)})</i>` : ""}</div>
+      ${c.description || c.fields.in_vivo ? `<div class="why">${esc(c.description)}${c.fields.in_vivo ? ` <i>(${esc(c.fields.in_vivo)})</i>` : ""}</div>` : ""}
+      ${fieldChips(c) ? `<div>${fieldChips(c)}</div>` : ""}
       ${c.quotes.filter(q => q.source === sid).map(q => `<div class="why"><span class="chip">${esc(q.unit.split(":")[1] || q.unit)}</span> ${esc(q.reason)}</div>`).join("")}
       ${c.sources.length > 1 ? `<div class="why">Also quoted from ${c.sources.filter(x => x !== sid).join(", ")}</div>` : ""}
-      <div class="why">${t ? `→ ${tag(t.id)} ${clink(t.id)}` : "not in a theme"}${d ? ` → ${tag(d.id)}` : ""} · <button class="clink" data-open="${c.id}">details</button></div>
+      <div class="why">${c.in.length ? "→ " + placedIn(c) : "not placed"}${top.length ? " → " + top.map(tag).join(" ") : ""} · <button class="clink" data-open="${c.id}">details</button></div>
 </div>`; }).join("");
   const select = (cid, from) => {
     box.querySelectorAll("mark.sel, .ccard.sel").forEach(x => x.classList.remove("sel"));
@@ -322,108 +328,116 @@ document.addEventListener("toggle", e => { const r = e.target.querySelector?.(":
 
 /* ---------- view: data structure ---------- */
 const RENDER = {};
+const topType = LV[LV.length - 1].type;
 RENDER.structure = el => {
+  const three = LV.length >= 3;
   el.innerHTML = `
-    <p class="lede">The whole analysis as one graph. Interviews on the left feed 1st-order concepts, grouped into 2nd-order themes and then into aggregate dimensions.
-    Band width is the number of concepts. Hover a node to follow its paths; click a theme or dimension to read it with every reason the agent gave.</p>
-    <div class="legend"><span class="lvl1"><i></i>Interviews and 1st-order concepts</span><span class="lvl2"><i></i>2nd-order themes</span><span class="lvl3"><i></i>Aggregate dimensions</span></div>
-    <div class="flow" id="flow"></div>
-    <h2>Dimensions, themes and concepts</h2>
-    <div class="toolbar"><input type="search" id="sfilter" placeholder="Filter concepts by word, e.g. pilvi, lock-in, MLOps"><span class="muted" id="scount"></span></div>
+    <p class="lede">The whole analysis: ${LV.map(l => esc(l.plural)).join(", then ")}, with every reason the agent gave.
+    ${three ? "In the graph, interviews on the left feed the middle level, which feeds the top level; band width is the number of " + esc(LV[0].plural) + ". Hover a node to follow its paths." : ""}
+    Click anything to read it in full.</p>
+    ${three ? `<div class="legend">${LV.map((l, i) => `<span class="lvl${Math.min(3, i + 1)}"><i></i>${esc(l.plural)}</span>`).join("")}</div><div class="flow" id="flow"></div>` : ""}
+    <h2>${cap(LV.slice().reverse().map(l => esc(l.plural)).join(" › "))}</h2>
+    <div class="toolbar"><input type="search" id="sfilter" placeholder="Filter by word in labels, descriptions or quotes"><span class="muted" id="scount"></span></div>
     <div id="tree" class="steps"></div>
-    <h2>Which interviews carry which themes</h2>
-    <p class="lede">Number of 1st-order concepts each interview contributes to each theme.</p>
+    <h2>Which interviews carry which ${esc(LV[1].plural)}</h2>
+    <p class="lede">Number of ${esc(LV[0].plural)} each interview contributes to each ${esc(LV[1].name)}.</p>
     <div class="matrix" id="matrix"></div>`;
-  drawFlow($("#flow"));
+  if (three) drawFlow($("#flow"));
   drawTree("");
   drawMatrix($("#matrix"));
   $("#sfilter").addEventListener("input", e => drawTree(e.target.value.trim().toLowerCase()));
 };
 
+/* the order groups are listed in: top level down; categories with a parent sit under it; grouped by origin if there is one */
+function groupSections() {
+  if (LV.length >= 3) return ofType(topType).map(t => ({head: t, groups: t.members.map(m => byId[m.id]).filter(Boolean)}))
+    .concat([{head: null, label: `${LV[1].plural} not in any ${LV[2].name}`, groups: ofType(LV[1].type).filter(g => !g.in.length)}]).filter(s => s.groups.length);
+  const gs = ofType(LV[1].type), roots = gs.filter(g => !g.fields.parent || !byId[g.fields.parent]);
+  const origins = [...new Set(roots.map(g => g.fields.origin || ""))];
+  return origins.map(o => ({head: null, label: o ? `${o} ${LV[1].plural}` : LV[1].plural, groups: roots.filter(g => (g.fields.origin || "") === o)}));
+}
 function drawTree(f) {
-  const hit = c => !f || [c.label, c.description, c.in_vivo, ...c.quotes.map(q => q.text)].join(" ").toLowerCase().includes(f);
+  const hit = c => !f || [c.label, c.description, ...Object.values(c.fields || {}), ...c.quotes.map(q => q.text)].join(" ").toLowerCase().includes(f);
   let shown = 0;
-  const html = D.dimensions.map(d => {
-    const ths = d.members.map(m => byId[m.id]).filter(Boolean).map(t => {
-      const cs = t.members.map(m => ({...byId[m.id], reason: m.reason})).filter(c => c.id && hit(c));
-      shown += cs.length;
-      if (f && !cs.length) return "";
-      const infs = new Set(t.members.flatMap(m => byId[m.id]?.sources || []));
-      return `<details class="theme lvl2"${f ? " open" : ""}><summary>${tag(t.id)}<span>${esc(t.label)}</span><span class="muted mono">${t.members.length} concepts · ${infs.size} interviews</span></summary>
-        <div class="tbody"><div class="why">${esc(t.description)}</div><div class="why"><b>Why in ${d.id}:</b> ${esc(t.dimension_reason)}</div>
-        <ul class="clist">${cs.map(c => `<li>${tag(c.id)}<div>${clink(c.id)} <span class="chip">${c.sources.join(" ")}</span><div class="why">${esc(c.reason)}</div></div></li>`).join("")}</ul></div></details>`;
-    }).join("");
-    if (f && !ths) return "";
-    return `<div class="dimcard"><div class="eyebrow">${tag(d.id)} aggregate dimension</div><h3><button class="clink" data-open="${d.id}">${esc(d.label)}</button></h3>
-      <div class="ans"><b>Answers:</b> ${esc(d.answers)}</div><div class="themes">${ths}</div></div>`;
+  const groupBlock = (g, parentHead, depth = 0) => {
+    const cs = g.members.map(m => ({...byId[m.id], reason: m.reason})).filter(c => c.id && c.type === CODE && hit(c));
+    const kids = ofType(g.type).filter(k => k.fields.parent === g.id);
+    const kidHtml = kids.map(k => groupBlock(k, null, depth + 1)).join("");
+    shown += cs.length;
+    if (f && !cs.length && !kidHtml) return "";
+    const infs = new Set(g.members.flatMap(m => byId[m.id]?.sources || []));
+    const why = parentHead ? (g.in.find(x => x.id === parentHead.id) || {}).reason : "";
+    return `<details class="theme ${lvl(g.id)}"${f ? " open" : ""} style="margin-left:${depth * 18}px"><summary>${tag(g.id)}<span>${esc(g.label)}</span><span class="muted mono">${g.members.length} · ${infs.size} interviews${kids.length ? ` · ${kids.length} finer` : ""}</span></summary>
+      <div class="tbody"><div class="why">${esc(g.description)}</div>${why ? `<div class="why"><b>Why in ${parentHead.id}:</b> ${esc(why)}</div>` : ""}
+      ${kidHtml}<ul class="clist">${cs.map(c => `<li>${tag(c.id)}<div>${clink(c.id)} <span class="chip">${c.sources.join(" ")}</span> ${fieldChips({fields: Object.fromEntries(Object.entries(c.fields).filter(([k]) => k === "period" || k === "direction"))})}<div class="why">${esc(c.reason)}</div></div></li>`).join("")}</ul></div></details>`;
+  };
+  const html = groupSections().map(sec => {
+    const inner = sec.groups.map(g => groupBlock(g, sec.head)).join("");
+    if (f && !inner) return "";
+    const head = sec.head ? `<div class="eyebrow">${tag(sec.head.id)} ${esc(lvName(sec.head))}</div><h3><button class="clink" data-open="${sec.head.id}">${esc(sec.head.label)}</button></h3>
+      ${sec.head.answers ? `<div class="ans"><b>Answers:</b> ${esc(sec.head.answers)}</div>` : ""}` : `<div class="eyebrow">${esc(sec.label)}</div>`;
+    return `<div class="dimcard">${head}<div class="themes">${inner}</div></div>`;
   }).join("");
-  const orphans = D.concepts.filter(c => !c.theme && hit(c));
+  const orphans = codes.filter(c => !c.in.length && hit(c));
   shown += orphans.length;
-  $("#tree").innerHTML = html + (orphans.length ? `<div class="dimcard"><div class="eyebrow">Not placed in any theme</div><ul class="clist">${orphans.map(c => `<li>${tag(c.id)}<div>${clink(c.id)} <span class="chip">${c.sources.join(" ")}</span></div></li>`).join("")}</ul></div>` : "");
-  $("#scount").textContent = f ? `${shown} of ${D.concepts.length} concepts match` : "";
+  $("#tree").innerHTML = html + (orphans.length ? `<div class="dimcard"><div class="eyebrow">Not placed anywhere</div><ul class="clist">${orphans.map(c => `<li>${tag(c.id)}<div>${clink(c.id)} <span class="chip">${c.sources.join(" ")}</span></div></li>`).join("")}</ul></div>` : "");
+  $("#scount").textContent = f ? `${shown} matches` : "";
 }
 
 function drawFlow(box) {
+  const mids = ofType(LV[1].type), tops = ofType(topType);
   const W = 1180, colX = [10, 150, 780, 990], nodeW = 12, gap = 3;
-  const themeOrder = D.dimensions.flatMap(d => d.members.map(m => m.id)).concat(D.themes.filter(t => !t.dimension).map(t => t.id));
-  const cnt = {}; const it = {};   // interview -> theme counts
-  for (const c of D.concepts) { if (!c.theme) continue; for (const s of c.sources) { const k = s + "|" + c.theme; it[k] = (it[k] || 0) + 1 / c.sources.length; } }
-  const tSize = Object.fromEntries(D.themes.map(t => [t.id, t.members.length]));
-  const total = D.concepts.filter(c => c.theme).length;
-  const H = Math.max(900, themeOrder.length * 24), scale = (H - gap * themeOrder.length) / total;
-  const nodes = {};
-  const iGap = 10, iScale = (H - iGap * srcIds.length) / total;
+  const midOrder = tops.flatMap(d => d.members.map(m => m.id)).concat(mids.filter(t => !t.in.length).map(t => t.id));
+  const it = {};
+  for (const c of codes) for (const g of c.in) for (const s of c.sources) { const k = s + "|" + g.id; it[k] = (it[k] || 0) + 1 / c.sources.length / c.in.length; }
+  const tSize = Object.fromEntries(mids.map(t => [t.id, t.members.length]));
+  const total = codes.filter(c => c.in.length).length || 1;
+  const H = Math.max(900, midOrder.length * 24), scale = (H - gap * midOrder.length) / total;
+  const nodes = {}, iGap = 10, iScale = (H - iGap * srcIds.length) / total;
   let y = 0;
-  for (const s of srcIds) { const v = D.concepts.filter(c => c.theme && c.sources.includes(s)).reduce((n, c) => n + 1 / c.sources.length, 0);
+  for (const s of srcIds) { const v = codes.filter(c => c.in.length && c.sources.includes(s)).reduce((n, c) => n + 1 / c.sources.length, 0);
     const h = Math.max(2, v * iScale); nodes[s] = {x: colX[0], y, h, v, out: 0}; y += h + iGap; }
-  y = 0; for (const t of themeOrder) { const h = Math.max(2, tSize[t] * scale); nodes[t] = {x: colX[2] - nodeW, y, h, in: 0, out: 0}; y += h + gap; }
-  const dimGap = 18, dScale = (H - dimGap * D.dimensions.length) / total;
-  y = 0; for (const d of D.dimensions) { const v = d.members.reduce((n, m) => n + tSize[m.id], 0), h = Math.max(2, v * dScale); nodes[d.id] = {x: colX[3], y, h, in: 0}; y += h + dimGap; }
-  const band = (x0, y0, x1, y1, h, color, cls, data) => {
-    const xm = (x0 + x1) / 2, a = y0 + h / 2, b = y1 + h / 2;
-    return `<path class="lnk ${cls}" ${data} d="M${x0},${a} C${xm},${a} ${xm},${b} ${x1},${b}" stroke="${color}" stroke-width="${Math.max(1, h)}"/>`;
-  };
+  y = 0; for (const t of midOrder) { const h = Math.max(2, tSize[t] * scale); nodes[t] = {x: colX[2] - nodeW, y, h, in: 0, out: 0}; y += h + gap; }
+  const dimGap = 18, dScale = (H - dimGap * tops.length) / total;
+  y = 0; for (const d of tops) { const v = d.members.reduce((n, m) => n + (tSize[m.id] || 0), 0), h = Math.max(2, v * dScale); nodes[d.id] = {x: colX[3], y, h, in: 0}; y += h + dimGap; }
+  const band = (x0, y0, x1, y1, h, color, data) => { const xm = (x0 + x1) / 2, a = y0 + h / 2, b = y1 + h / 2;
+    return `<path class="lnk" ${data} d="M${x0},${a} C${xm},${a} ${xm},${b} ${x1},${b}" stroke="${color}" stroke-width="${Math.max(1, h)}"/>`; };
   let links = "";
-  for (const s of srcIds) for (const t of themeOrder) {
-    const v = it[s + "|" + t]; if (!v) continue;
+  for (const s of srcIds) for (const t of midOrder) { const v = it[s + "|" + t]; if (!v) continue;
     const a = nodes[s], b = nodes[t], hA = v * iScale, hB = v * scale;
-    links += band(a.x + nodeW, a.y + a.out, b.x, b.y + b.in, Math.min(hA, hB), "var(--l1)", "", `data-a="${s}" data-b="${t}"`);
-    a.out += hA; b.in += hB;
-  }
-  for (const d of D.dimensions) for (const m of d.members) {
-    const a = nodes[m.id], b = nodes[d.id]; if (!a) continue;
+    links += band(a.x + nodeW, a.y + a.out, b.x, b.y + b.in, Math.min(hA, hB), "var(--l1)", `data-a="${s}" data-b="${t}"`); a.out += hA; b.in += hB; }
+  for (const d of tops) for (const m of d.members) { const a = nodes[m.id], b = nodes[d.id]; if (!a) continue;
     const h = tSize[m.id] * scale, hB = tSize[m.id] * dScale;
-    links += band(a.x + nodeW, a.y + a.out, b.x, b.y + b.in, Math.min(h, hB), "var(--l2)", "", `data-a="${m.id}" data-b="${d.id}"`);
-    a.out += h; b.in += hB;
-  }
+    links += band(a.x + nodeW, a.y + a.out, b.x, b.y + b.in, Math.min(h, hB), "var(--l2)", `data-a="${m.id}" data-b="${d.id}"`); a.out += h; b.in += hB; }
   let rects = "";
   for (const s of srcIds) { const n = nodes[s]; rects += `<g data-node="${s}"><rect x="${n.x}" y="${n.y}" width="${nodeW}" height="${n.h}" fill="var(--l1)"/><text x="${n.x + nodeW + 4}" y="${n.y + n.h / 2 + 4}">${s}</text></g>`; }
-  for (const t of themeOrder) { const n = nodes[t], o = byId[t];
+  for (const t of midOrder) { const n = nodes[t], o = byId[t];
     rects += `<g data-node="${t}" data-open="${t}" style="cursor:pointer"><rect x="${n.x}" y="${n.y}" width="${nodeW}" height="${n.h}" fill="var(--l2)"/>
       <text x="${n.x - 6}" y="${n.y + n.h / 2 + 4}" text-anchor="end">${esc(t)} ${esc(o.label.length > 74 ? o.label.slice(0, 72) + "…" : o.label)}</text></g>`; }
-  for (const d of D.dimensions) { const n = nodes[d.id];
-    const words = d.label.split(" "), lines = []; let cur = "";
+  for (const d of tops) { const n = nodes[d.id], words = d.label.split(" "), lines = []; let cur = "";
     for (const w of words) { if ((cur + " " + w).length > 26) { lines.push(cur); cur = w; } else cur = (cur ? cur + " " : "") + w; } lines.push(cur);
     rects += `<g data-node="${d.id}" data-open="${d.id}" style="cursor:pointer"><rect x="${n.x}" y="${n.y}" width="${nodeW}" height="${n.h}" fill="var(--l3)"/>
-      <text x="${n.x + nodeW + 6}" y="${n.y + 12}"><tspan font-weight="600">${d.id}</tspan>${lines.slice(0, 5).map((l, i) => `<tspan x="${n.x + nodeW + 6}" dy="${i ? 13 : 13}">${esc(l)}</tspan>`).join("")}</text></g>`; }
-  box.innerHTML = `<svg viewBox="0 0 ${W} ${H + 20}" role="img" aria-label="Flow from interviews through themes to aggregate dimensions"><g id="links">${links}</g>${rects}</svg>`;
+      <text x="${n.x + nodeW + 6}" y="${n.y + 12}"><tspan font-weight="600">${d.id}</tspan>${lines.slice(0, 5).map(l => `<tspan x="${n.x + nodeW + 6}" dy="13">${esc(l)}</tspan>`).join("")}</text></g>`; }
+  box.innerHTML = `<svg viewBox="0 0 ${W} ${H + 20}" role="img" aria-label="Flow from interviews through the levels of the analysis"><g>${links}</g>${rects}</svg>`;
   const svg = box.querySelector("svg");
   svg.addEventListener("mouseover", e => { const g = e.target.closest("[data-node]"); if (!g) return; const id = g.dataset.node;
     svg.classList.add("dim"); svg.querySelectorAll(".lnk").forEach(p => {
-      const on = p.dataset.a === id || p.dataset.b === id || (id.startsWith("D-") && byId[id].members.some(m => m.id === p.dataset.b || m.id === p.dataset.a));
+      const on = p.dataset.a === id || p.dataset.b === id || (byId[id]?.type === topType && byId[id].members.some(m => m.id === p.dataset.b || m.id === p.dataset.a));
       p.classList.toggle("hi", on); }); });
   svg.addEventListener("mouseout", () => { svg.classList.remove("dim"); svg.querySelectorAll(".hi").forEach(p => p.classList.remove("hi")); });
 }
 
 function drawMatrix(box) {
-  const max = Math.max(...D.themes.flatMap(t => srcIds.map(s => t.members.filter(m => byId[m.id]?.sources.includes(s)).length)));
-  const rows = D.dimensions.flatMap(d => [`<tr><td colspan="${srcIds.length + 2}" class="lvl3"><span class="tag">${d.id}</span> <b>${esc(d.label)}</b></td></tr>`,
-    ...d.members.map(m => { const t = byId[m.id];
-      const cells = srcIds.map(s => { const n = t.members.filter(x => byId[x.id]?.sources.includes(s)).length;
+  const rowsOf = sec => { const out = []; const walk = (g, d) => { out.push([g, d]); ofType(g.type).filter(k => k.fields.parent === g.id).forEach(k => walk(k, d + 1)); }; sec.groups.forEach(g => walk(g, 0)); return out; };
+  const secs = groupSections(), all = secs.flatMap(rowsOf).map(([g]) => g);
+  const cnt = (g, s) => g.members.filter(m => byId[m.id]?.type === CODE && byId[m.id].sources.includes(s)).length;
+  const max = Math.max(1, ...all.flatMap(g => srcIds.map(s => cnt(g, s))));
+  const rows = secs.flatMap(sec => [`<tr><td colspan="${srcIds.length + 2}" class="${sec.head ? lvl(sec.head.id) : ""}">${sec.head ? `<span class="tag">${sec.head.id}</span> <b>${esc(sec.head.label)}</b>` : `<b>${esc(sec.label)}</b>`}</td></tr>`,
+    ...rowsOf(sec).map(([g, d]) => { const cells = srcIds.map(s => { const n = cnt(g, s);
         return `<td class="n" style="background:${n ? `color-mix(in srgb, var(--l2) ${Math.round(15 + 70 * n / max)}%, var(--surface))` : "transparent"}">${n || ""}</td>`; }).join("");
-      const k = new Set(t.members.flatMap(x => byId[x.id]?.sources || [])).size;
-      return `<tr><td class="th"><button class="clink" data-open="${t.id}">${esc(t.id)} ${esc(t.label)}</button></td>${cells}<td class="n">${k}</td></tr>`; })]).join("");
-  box.innerHTML = `<table><thead><tr><th>Theme</th>${srcIds.map(s => `<th class="n">${s}</th>`).join("")}<th class="n">interviews</th></tr></thead><tbody>${rows}</tbody></table>`;
+      const k = new Set(g.members.flatMap(x => byId[x.id]?.sources || [])).size;
+      return `<tr><td class="th" style="padding-left:${8 + d * 16}px"><button class="clink" data-open="${g.id}">${esc(g.id)} ${esc(g.label)}</button></td>${cells}<td class="n">${k}</td></tr>`; })]).join("");
+  box.innerHTML = `<table><thead><tr><th>${esc(LV[1].name)}</th>${srcIds.map(s => `<th class="n">${esc(s)}</th>`).join("")}<th class="n">interviews</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 /* ---------- view: step by step ---------- */
@@ -433,10 +447,11 @@ RENDER.process = el => {
     const evs = evBySession[s.id] || [];
     const counts = {}; for (const e of evs) counts[e.action] = (counts[e.action] || 0) + 1;
     const cps = evs.filter(e => e.action === "checkpoint");
-    const created = evs.flatMap(e => e.ids).filter(i => /^(C|T|D|CB|M)-/.test(i));
-    const which = s.task === "first_order" && s.sources.length === 1 ? `Interview ${codingOrder.indexOf(s.sources[0]) + 1} of ${srcIds.length}: ${s.sources[0]}`
+    const created = [...new Set(evs.flatMap(e => e.ids))];
+    const which = s.sources.length === 1 ? `${esc(s.task)} · interview ${codingOrder.indexOf(s.sources[0]) + 1} of ${srcIds.length}: ${s.sources[0]}`
       : `${esc(s.task)}${s.sources.length ? " · " + s.sources.join(", ") : ""}`;
-    const readers = /^(calibrate|first_order)$/.test(s.task) ? s.sources.map(x => `<details class="more" open><summary>Read ${x} with its concepts highlighted (${D.concepts.filter(c => c.sources.includes(x)).length})</summary>${readerHTML(x)}</details>`).join("") : "";
+    const readers = s.sources.length && s.sources.length <= 3 && evs.some(e => e.action === "begin")
+      ? s.sources.map(x => `<details class="more" open><summary>Read ${x} with its ${esc(LV[0].plural)} highlighted (${codes.filter(c => c.sources.includes(x)).length})</summary>${readerHTML(x)}</details>`).join("") : "";
     return `<div class="sess"><div class="eyebrow">${which}</div>
       <div class="meta"><span>${fmtTime(s.started)} UTC</span><span>${esc(s.model || "")}</span><span>${s.minutes} min</span><span>${s.turns ?? "?"} turns</span><span>$${s.cost}</span><span>prompt ${esc((s.prompt_sha || "").slice(7, 19))}</span><span>exit ${s.exit}</span></div>
       <div class="meta">${Object.entries(counts).map(([k, v]) => `<span>${k} ×${v}</span>`).join("")}</div>
@@ -461,46 +476,46 @@ RENDER.process = el => {
   };
   const stageMemos = stage => {
     const seqs = new Set(D.events.filter(e => e.stage === stage).map(e => e.seq));
-    const ms = D.memos.filter(m => seqs.has(m.event) && (m.level === "batch" || m.level === "corpus"));
-    return ms.length ? `<details class="more"><summary>Batch and corpus memos written in this step (${ms.length})</summary><div class="memos">${ms.map(memoCard).join("")}</div></details>` : "";
+    const ms = D.memos.filter(m => seqs.has(m.event) && (m.level !== "note"));
+    return ms.length ? `<details class="more"><summary>Interview, batch and corpus memos written in this step (${ms.length})</summary><div class="memos">${ms.map(memoCard).join("")}</div></details>` : "";
   };
   const counts = stage => { const ev = D.events.filter(e => e.stage === stage), c = {};
     for (const e of ev) c[e.action] = (c[e.action] || 0) + 1; return Object.entries(c).map(([k, v]) => `${k} ×${v}`).join(" · "); };
   const setup = `<div class="step"><div class="no">0</div><div class="body"><h2>Setup</h2>
-    <p class="lede">17 transcripts ingested, one database per run, the study brief frozen into the run. The agent worked only through the analysis server: no files, shell, web or memory.
-    Before any analysis, the model was asked about the published study without data (probes, see Instructions).</p>
+    <p class="lede">${D.sources.length} transcripts ingested, one database per run, the study brief frozen into the run. The agent worked only through the analysis server: no files, shell, web or memory.
+    ${Object.keys(D.probes).length ? "Before any analysis, the model was asked about the original study without data (probes, see Instructions)." : ""}</p>
     <div class="meta mono muted">run created ${fmtTime(D.run.created)} · method ${esc(D.run.method)} · method hash ${esc(D.run.method_hash.slice(7, 23))}</div></div></div>`;
   el.innerHTML = `<p class="lede">How the run unfolded, step by step: every agent session with its prompt, model, length and report; every checkpoint with the agent's questions; and every decision made at the checkpoint.</p>
     <div class="steps">${setup}${STAGES.map((st, i) => {
       const ss = D.sessions.filter(s => s.stage === st);
-      return `<div class="step"><div class="no">${i + 1}</div><div class="body"><h2>${STAGE_NAME[st] || st}</h2>
-        <div class="muted">${esc(D.docs.stages[i].title || "")} · ${ss.length} session${ss.length === 1 ? "" : "s"} · ${counts(st)}</div>
+      return `<div class="step"><div class="no">${i + 1}</div><div class="body"><h2>${esc(STAGE_NAME[st])}</h2>
+        <div class="muted">stage <code>${esc(st)}</code> · ${ss.length} session${ss.length === 1 ? "" : "s"} · ${counts(st)}</div>
         ${ss.map(sessCard).join("")}${stageMemos(st)}${decisions(st)}</div></div>`; }).join("")}</div>`;
   el.querySelectorAll("details[open] > .reader").forEach(r => { const io = new IntersectionObserver(es => { if (es.some(x => x.isIntersecting)) { initReader(r); io.disconnect(); } }, {rootMargin: "400px"}); io.observe(r); });
 };
 
 /* ---------- view: interviews ---------- */
 RENDER.interviews = el => {
-  const n = s => D.concepts.filter(c => c.sources.includes(s)).length;
+  const n = s => codes.filter(c => c.sources.includes(s)).length;
   let order = "coded";
-  el.innerHTML = `<p class="lede">Each interview in full. Passages the agent quoted are highlighted; click one to see the concept it supports, or click a concept to jump to its passages.
-    Interviewer turns (K) are grey, informant turns (V) are black.</p>
-    <div class="toolbar"><span class="seg" id="iorder"><button data-o="coded" aria-pressed="true">Order coded</button><button data-o="id" aria-pressed="false">E01–E18</button></span></div>
+  el.innerHTML = `<p class="lede">Each interview in full. Passages the agent quoted are highlighted; click one to see what it was coded as, or click an item on the right to jump to its passages.
+    Interviewer turns are grey, informant turns are black.</p>
+    <div class="toolbar"><span class="seg" id="iorder"><button data-o="coded" aria-pressed="true">Order coded</button><button data-o="id" aria-pressed="false">By name</button></span></div>
     <div class="split"><div class="ilist" id="ilist"></div><div id="ibody" style="display:grid;gap:16px;min-width:0"></div></div>`;
   let current = codingOrder[0];
   const list = () => {
     const ids = order === "coded" ? codingOrder : [...srcIds];
-    $("#ilist").innerHTML = ids.map(sid => `<button data-src="${sid}" aria-current="${sid === current}"><span>${order === "coded" ? `<span class="muted mono">${codingOrder.indexOf(sid) + 1}.</span> ` : ""}${sid}</span><span class="muted mono">${n(sid)}</span></button>`).join("");
+    $("#ilist").innerHTML = ids.map(sid => `<button data-src="${sid}" aria-current="${sid === current}"><span>${order === "coded" ? `<span class="muted mono">${codingOrder.indexOf(sid) + 1}.</span> ` : ""}${esc(sid)}</span><span class="muted mono">${n(sid)}</span></button>`).join("");
   };
   const pick = sid => {
     current = sid; list();
     const src = D.sources.find(s => s.id === sid), ms = memosAbout(sid);
-    const kinds = ["informant", "summary", "residual", "uncertainty", "surprise", "meaning", "reflexive", "method"];
+    const kinds = ["summary", "informant", "residual", "uncertainty", "surprise", "meaning", "reflexive", "method"];
     ms.sort((a, b) => kinds.indexOf(a.kind) - kinds.indexOf(b.kind));
     const sess = D.sessions.filter(s => s.sources.includes(sid));
-    $("#ibody").innerHTML = `<div><div class="eyebrow">Interview ${codingOrder.indexOf(sid) + 1} of ${srcIds.length} in coding order</div><h2>${sid}</h2>
-      <div class="muted mono">${src.segments} informant segments · ${src.chars.toLocaleString()} characters · ${n(sid)} concepts · ${sess.map(s => esc(s.task)).join(", ") || "–"}</div></div>
-      <details class="more"><summary>Memos about this interview (${ms.length})</summary><div class="memos">${ms.map(memoCard).join("") || `<p class="muted">None.</p>`}</div></details>
+    $("#ibody").innerHTML = `<div><div class="eyebrow">Interview ${codingOrder.indexOf(sid) + 1} of ${srcIds.length} in coding order</div><h2>${esc(sid)}</h2>
+      <div class="muted mono">${src.segments} informant segments · ${src.chars.toLocaleString()} characters · ${n(sid)} ${esc(LV[0].plural)} · ${sess.map(s => esc(s.task)).join(", ") || "–"}</div></div>
+      <details class="more"${ms.some(m => m.level === "interview") ? " open" : ""}><summary>Memos about this interview (${ms.length})</summary><div class="memos">${ms.map(memoCard).join("") || `<p class="muted">None.</p>`}</div></details>
       ${readerHTML(sid)}`;
     initReader($("#ibody .reader"));
   };
@@ -512,7 +527,7 @@ RENDER.interviews = el => {
 
 /* ---------- view: codebook ---------- */
 RENDER.codebook = el => {
-  el.innerHTML = `<p class="lede">The shared long-term memory the agents coded by. Agents proposed entries; in this run every proposal was approved as written by the AI-only policy.</p>
+  el.innerHTML = `<p class="lede">The shared long-term memory the agents coded by. Agents proposed entries; the researcher (or, in an AI-only run, the policy standing in for them) approved them.</p>
     <div class="tablewrap"><table><thead><tr><th>Entry</th><th>Definition</th><th>Use when</th><th>Do not use when</th><th>Status</th></tr></thead><tbody>
     ${D.codebook.map(c => `<tr><td style="min-width:200px"><span class="chip">${c.id}</span> <b>${esc(c.label)}</b></td><td style="min-width:240px">${esc(c.definition)}</td><td style="min-width:200px">${esc(c.use_when || "")}</td><td style="min-width:200px">${esc(c.not_when || "")}</td><td class="mono">${esc(c.status)} v${c.version ?? ""}</td></tr>`).join("")}
     </tbody></table></div>`;
@@ -522,18 +537,20 @@ RENDER.codebook = el => {
 RENDER.instructions = el => {
   const I = D.intent, d = D.docs;
   const doc = (title, text, open) => `<details class="more doc"${open ? " open" : ""}><summary><b>${esc(title)}</b></summary><div class="md">${md(text)}</div></details>`;
-  el.innerHTML = `<p class="lede">Everything the agents were told, exactly as served by the analysis server: the study brief, the general ways of working, the Gioia method guide, the how-to guides, and the task prompt for each kind of session. Nothing else reached them.</p>
+  const NAMES = {research_question: "Research question", method: "Method", stance: "Stance", prior_research: "Prior research",
+                 sensitizing_concepts: "Sensitizing concepts", study_context: "Study context", coding_frame: "Coding frame", theory_frame: "Theory frame"};
+  const val = v => Array.isArray(v) ? `<ul>${v.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : `<p>${esc(v)}</p>`;
+  el.innerHTML = `<p class="lede">Everything the agents were told, exactly as served by the analysis server: the study brief, the general ways of working, the method guide, the how-to guides, and the task prompt for each kind of session. Nothing else reached them.</p>
     <h2>Study brief</h2>
-    <div class="doc"><div class="md">${[["Research question", I.research_question], ["Stance", I.stance], ["Prior research", I.prior_research], ["Sensitizing concepts", I.sensitizing_concepts], ["Study context", I.study_context]]
-      .filter(([, v]) => v).map(([k, v]) => `<h3>${k}</h3><p>${esc(v)}</p>`).join("")}</div></div>
+    <div class="doc"><div class="md">${Object.entries(I).filter(([k, v]) => v && k !== "method").map(([k, v]) => `<h3>${esc(NAMES[k] || k)}</h3>${val(v)}`).join("")}</div></div>
     <h2>Ways of working (all methods)</h2>${doc("AGENTS.md", d.ways_of_working)}
-    <h2>Gioia method guide</h2>${doc("method.md", d.method)}
+    <h2>${esc(D.method.title)}</h2>${doc("method.md", d.method)}
     <h2>How-to guides</h2>${Object.entries(d.guides).map(([k, v]) => doc(`guide("${k}")`, v)).join("")}
     <h2>Stages</h2><div class="tablewrap"><table><thead><tr><th>Stage</th><th>Creates</th><th>May change</th></tr></thead><tbody>
       ${d.stages.map(s => `<tr><td><b>${esc(s.id)}</b><div class="muted">${esc(s.title || "")}</div></td><td class="mono">${s.create.join(", ")}</td><td class="mono">${s.edit.join(", ")}</td></tr>`).join("")}</tbody></table></div>
     <h2>Task prompts</h2>${Object.entries(d.tasks).map(([k, v]) => doc(`stages/${k}.md`, v)).join("")}
     ${Object.keys(D.probes).length ? `<h2>Contamination probes (before the analysis, no data)</h2>
-      <p class="lede">probe1: asked directly what the published study found. probe2: asked to predict the dimensions from the brief alone. Neither answer was shown to the analysis sessions.</p>
+      <p class="lede">probe1: asked directly what the original study found. probe2: asked to predict the result from the brief alone. Neither answer was shown to the analysis sessions.</p>
       ${Object.entries(D.probes).map(([k, v]) => doc(k, v)).join("")}` : ""}`;
 };
 

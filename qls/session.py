@@ -547,7 +547,8 @@ class Session:
         if a is None:
             return refuse(f"Unknown action {action!r}.", f"Actions: {', '.join(self.m.actions)}")
         fields = self.m.fields.get(a.type, [])
-        known = {f.param for f in fields} | {"quotes", "source", "answers"} | ({a.members_param} if a.members_param else set())
+        known = {f.param for f in fields} | {"quotes", "source", "answers"} | ({a.members_param} if a.members_param else set()) \
+            | ({a.into_param} if a.into_param else set())
         extra = set(kw) - known
         if extra:
             return refuse(f"{action} has no parameter {', '.join(sorted(extra))}.", f"Parameters: {', '.join(sorted(known))}")
@@ -574,7 +575,26 @@ class Session:
                 seen.add(q["id"])
                 queries.append(f"match $c isa {a.type}, has id {lit(cid)}; $q isa quote, has id {lit(q['id'])}; "
                                f"insert $e isa evidence (claim: $c, quote: $q), has reason {lit(q['reason'])}{ctx.stamp};")
-            return queries, {"id": cid, "quotes": [{k: q[k] for k in ("id", "source", "unit", "text", "match")} for q in quotes]}
+            placed = []
+            if a.into:   # placed in its groups in the same transaction, each with a reason
+                g = next(x for x in self.m.groups if x.type == a.into and x.member_type == a.type)
+                items = kw.get(a.into_param) or []
+                if not isinstance(items, list) or len(items) < a.into_min:
+                    raise Refusal(f"Say which {a.into}(s) this {a.type} belongs to: {a.into_param}=[{{\"id\", \"reason\"}}].")
+                if g.exclusive and len(items) > 1:
+                    raise Refusal(f"A {a.type} can be in one {a.into} only.")
+                for it in items:
+                    gid = str((it or {}).get("id") or "")
+                    if not str((it or {}).get("reason") or "").strip():
+                        raise Refusal(f"{gid or 'an item'} has no reason.", f"Say in one line why this {a.type} belongs there.")
+                    self._need(gid, [a.into])
+                    queries.append(f"match $g isa {a.into}, has id {lit(gid)}; $m isa {a.type}, has id {lit(cid)}; "
+                                   f"insert $r isa {g.relation} ({g.group_role}: $g, {g.member_role}: $m), has reason {lit(it['reason'])}{ctx.stamp};")
+                    placed.append(gid)
+            out = {"id": cid, "quotes": [{k: q[k] for k in ("id", "source", "unit", "text", "match")} for q in quotes]}
+            if a.into:
+                out[a.into_param] = placed
+            return queries, out
 
         return self._write(a.name, kw, build, kw.get("label", ""))
 

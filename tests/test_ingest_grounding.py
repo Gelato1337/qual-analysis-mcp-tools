@@ -62,25 +62,25 @@ DOCLING_LIKE = """<!-- image -->
 
 ## Oral History of Someone
 
-William Aspray: Today is Friday and I am interviewing Kapor.
+Claire Moreau: Today is Friday and I am interviewing Lindqvist.
 
 ## Background and Education
 
-Aspray: Tell me about your education.
+Moreau: Tell me about your education.
 
-## Kapor: Well, so where to start?
+## Lindqvist: Well, so where to start?
 
-## Aspray:
+## Moreau:
 
 ## Education.
 
-Kapor:
+Lindqvist:
 
 I studied psychology and then taught meditation.
 
-## Aspray: What did your father do?
+## Moreau: What did your father do?
 
-## Kapor:
+## Lindqvist:
 
 He was in business, small manufacturing.
 """
@@ -88,7 +88,7 @@ He was in business, small manufacturing.
 
 def test_converter_markdown_labels_sections_and_full_names():
     doc = build_document("k", DOCLING_LIKE, [], 2000)
-    assert doc["speakers"] == {"Aspray": "interviewer", "Kapor": "informant"}
+    assert doc["speakers"] == {"Moreau": "interviewer", "Lindqvist": "informant"}
     texts = [s["text"] for s in doc["segments"]]
     assert texts == ["Well, so where to start?", "I studied psychology and then taught meditation.",
                      "He was in business, small manufacturing."]
@@ -99,7 +99,7 @@ def test_converter_markdown_labels_sections_and_full_names():
     assert doc["turns"][0]["role"] == "meta"
     assert any(t["speaker"] == "section" for t in doc["turns"])
     first_q = [t for t in doc["turns"] if t["role"] == "interviewer"][0]
-    assert first_q["text"].startswith("Today is Friday")  # "William Aspray:" resolved to Aspray
+    assert first_q["text"].startswith("Today is Friday")  # "Claire Moreau:" resolved to Moreau
 
 
 def test_page_break_inside_sentence_is_not_a_segment_boundary():
@@ -112,17 +112,17 @@ def test_page_break_inside_sentence_is_not_a_segment_boundary():
 
 
 def test_page_footers_are_dropped():
-    page = "CHM Ref:X.2004      © 2004 Computer History Museum      Page {} of 9"
+    page = "ARC Ref:X.2004      © 2004 Example Archive      Page {} of 9"
     text = "\n".join([
-        "Haigh: Why spreadsheets?",
-        "Fylstra: Because accountants",
+        "Brandt: Why spreadsheets?",
+        "Okafor: Because accountants",
         page.format(3),
         "already worked in rows and columns.",
-        "Haigh: And then?", "Fylstra: We sold it.", page.format(4),
-        "Haigh: Where?", "Fylstra: Everywhere.", page.format(5),
+        "Brandt: And then?", "Okafor: We sold it.", page.format(4),
+        "Brandt: Where?", "Okafor: Everywhere.", page.format(5),
     ])
-    doc = build_document("F", text, ["Haigh"], 2000)
-    assert doc["speakers"] == {"Haigh": "interviewer", "Fylstra": "informant"}
+    doc = build_document("F", text, ["Brandt"], 2000)
+    assert doc["speakers"] == {"Brandt": "interviewer", "Okafor": "informant"}
     assert doc["segments"][0]["text"] == "Because accountants\nalready worked in rows and columns."
 
 
