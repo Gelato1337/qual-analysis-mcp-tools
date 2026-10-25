@@ -16,6 +16,15 @@ knows what was decided while coding interview 2. Agents propose; the researcher 
 "Do not use when" is the most useful field. It grows from hard cases: every time you hesitate between
 two codes, the reason you chose one is a rule for the next session.
 
+## Scope rules
+
+A `scope` entry (`propose_codebook(kind="scope", ...)`) says how answers to one part of the interview
+guide count for the research question. Interviews often contain material the research question is
+not about: questions asked for another study, slides or examples shown to the informant, warm-up
+talk. Label = the part of the guide; definition = the rule; use when / do not use when = what counts
+and what does not. Example: "Slides on the four process models: answers count only where the informant
+describes a change over time; opinions about a model, given because it was shown, do not."
+
 ## When to propose
 
 - A new entry, when a concept recurs across informants, or when it is likely to (in calibration, from

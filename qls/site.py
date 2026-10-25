@@ -65,10 +65,17 @@ def collect(p: Project, run: str) -> dict:
     ev = _rows(s, f"match $c isa {code_t}, has id $i; $e isa evidence (claim: $c, quote: $q); $e has reason $r; "
                   "$q has id $qid, has start-offset $a, has end-offset $b, has unit $u; quoting (source: $s, quote: $q); "
                   "$s has id $sid; select $i, $r, $qid, $a, $b, $u, $sid;")
+    labels = {}
+    if "attribute prompting" in s.m.core:
+        for x in _rows(s, f"match $c isa {code_t}, has id $i; $e isa evidence (claim: $c, quote: $q); $e has prompting $p; "
+                          "$q has id $qid; try { $e has question-overlap $o; }; select $i, $qid, $p, $o;"):
+            labels[(x["i"], x["qid"])] = (x["p"], x.get("o"))
     for e in ev:
         src = srcs[e["sid"]]
+        lab = labels.get((e["i"], e["qid"]), (None, None))
         objects[e["i"]]["quotes"].append({"id": e["qid"], "source": e["sid"], "unit": e["u"], "start": int(e["a"]), "end": int(e["b"]),
-                                          "text": src["text"][int(e["a"]):int(e["b"])], "reason": e["r"]})
+                                          "text": src["text"][int(e["a"]):int(e["b"])], "reason": e["r"],
+                                          "prompted": lab[0], "overlap": lab[1]})
     for o in objects.values():
         if o["type"] == code_t:
             o["quotes"].sort(key=lambda q: (q["source"], q["start"]))
@@ -112,7 +119,8 @@ def collect(p: Project, run: str) -> dict:
     cb = {}
     lab = _attr(s, "codebook-entry", "label")
     for k, attr in (("definition", "description"), ("use_when", "inclusion"), ("not_when", "exclusion"),
-                    ("status", "status"), ("version", "version"), ("actor", "actor"), ("event", "event")):
+                    ("status", "status"), ("version", "version"), ("actor", "actor"), ("event", "event"),
+                    *((("kind", "rule-kind"),) if "attribute rule-kind" in s.m.core else ())):
         vals = _attr(s, "codebook-entry", attr)
         for i in lab:
             cb.setdefault(i, {"id": i, "label": lab[i]})[k] = vals.get(i)

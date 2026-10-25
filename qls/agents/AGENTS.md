@@ -32,6 +32,13 @@ not work around it: say so in a memo or a checkpoint question.
 - Copy transcription marks as they are: pauses, `(-)`, `[pp]`, dialect spellings. They are part of
   the text the quote is checked against.
 - Quote the shortest span that carries the meaning: usually one to three sentences.
+- Label every quote with how it came about (`prompted`):
+  - `spontaneous`: the informant raised it themselves; the question before it did not name the topic;
+  - `prompted`: the interviewer's question (or material shown, such as slides) named the topic;
+  - `agreement`: the informant only agrees with what the interviewer said.
+  Label what happened, not how important the quote is. All three are evidence of different kinds:
+  spontaneous talk shows what is on the informant's mind; prompted answers show their view when
+  asked. The tool also records how much each quote repeats its question.
 - Only informants are quotable. Interviewer questions are context, not evidence. When an informant
   only agrees with something the interviewer said ("Juu", "Yes, exactly"), the claim is the
   interviewer's: note it, do not code it as the informant's view.
@@ -68,7 +75,9 @@ short. Write them while the thought is fresh, not at the end.
   budget per level is enforced.
 - How to write the interview memo: `guide("interview-memo")`.
 
-**Codebook.** The codebook is the shared long-term memory: the rules everyone codes by. Use approved
+**Codebook.** The codebook is the shared long-term memory: the rules everyone codes by. It holds two
+kinds of rule: `code` entries (what a code means) and `scope` entries (how answers to one part of the
+interview guide count for the research question). Use approved
 entries consistently. When an entry nearly fits, the difference is information: memo it and propose
 a change rather than bending the entry or the data.
 

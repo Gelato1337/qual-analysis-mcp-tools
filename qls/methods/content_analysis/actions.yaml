@@ -37,7 +37,7 @@ actions:
     into_param: categories
     doc: >
       Code a passage in one call: quotes [{"text": the informant's exact words, "reason": why they say
-      this}] and categories [{"id": "K-2", "reason": why the passage belongs there}], at least one.
+      this, "prompted": spontaneous | prompted | agreement}] and categories [{"id": "K-2", "reason": why the passage belongs there}], at least one.
       Quotes are checked against the transcript now; if one is not found, nothing is saved.
 
 memo:

@@ -111,12 +111,28 @@ class Project:
     def db_name(self, run: str) -> str:
         return f"{self.cfg('typedb', 'database_prefix', 'qls')}_{run}"
 
+    def snapshot_method(self, m: Method) -> Path:
+        """Keep a copy of this method version (and the core schema it was built on) in the project, so runs
+        made with it keep working after the method or the core changes. Stored once per version, by hash."""
+        d = self.root / "methods" / m.hash.split(":")[-1][:16]
+        if not d.exists():
+            for rel, text in m.files.items():
+                f = d / rel
+                f.parent.mkdir(parents=True, exist_ok=True)
+                f.write_text(text, encoding="utf-8")
+        return d
+
     def method_of(self, run: dict) -> Method:
         m = load_method(run["config"].get("method_path") or run["method"])
-        if m.hash != run["method_hash"]:
-            raise QlsError(f"Method {m.name!r} changed since run {run['id']} was created ({run['method_hash'][:19]} -> {m.hash[:19]}). "
-                           "Fork into a new run, or restore the method files.")
-        return m
+        if m.hash == run["method_hash"]:
+            return m
+        stored = self.root / "methods" / run["method_hash"].split(":")[-1][:16]
+        if stored.is_dir():
+            ms = load_method(str(stored))
+            if ms.hash == run["method_hash"]:
+                return ms
+        raise QlsError(f"Method {m.name!r} changed since run {run['id']} was created ({run['method_hash'][:19]} -> {m.hash[:19]}), "
+                       "and the project has no stored copy of the old version. Restore the method files, or start a new run.")
 
     # -- ingestion --------------------------------------------------------------
 
@@ -169,6 +185,7 @@ class Project:
         intent = intent or self.read_intent()
         m = load_method(method or intent.get("method") or "gioia")
         intent["method"] = m.name
+        self.snapshot_method(m)
         config = dict(config or {})
         if method and Path(method).is_dir():
             config["method_path"] = str(Path(method).resolve())
@@ -177,7 +194,7 @@ class Project:
             raise QlsError("No sources. `qls ingest` the interviews first.")
         config["sources"] = pinned
         db = self.db_name(run)
-        self.graph.create(db, [core_schema(), m.schema])
+        self.graph.create(db, [m.core, m.schema])
         try:
             with self.ledger.lock():
                 self.ledger.create_run(run, m.name, m.hash, intent, config, db)
@@ -204,7 +221,7 @@ class Project:
         at = at if at is not None else self.ledger.next_seq(run) - 1
         db = self.db_name(new)
         m = self.method_of(r)
-        self.graph.create(db, [core_schema(), m.schema])
+        self.graph.create(db, [m.core, m.schema])
         try:
             with self.ledger.lock():
                 self.ledger.create_run(new, r["method"], r["method_hash"], r["intent"], {**r["config"], "note": note}, db,
@@ -229,7 +246,7 @@ class Project:
         m = self.method_of(r)
         scratch = f"{r['db']}__replay"
         self.graph.drop(scratch)
-        self.graph.create(scratch, [core_schema(), m.schema])
+        self.graph.create(scratch, [m.core, m.schema])
         try:
             n = self.replay_into(run, scratch)
             a, b = self.graph.state_hash(r["db"]), self.graph.state_hash(scratch)

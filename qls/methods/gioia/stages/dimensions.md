@@ -9,7 +9,8 @@ research question, and to test each against the data.
 2. Re-read the research question for the kind of answer it asks for. Then build dimensions with
    `add_dimension`: themes with reasons, and `answers` saying how the dimension answers the question.
 3. Search for negative cases for each dimension in the data, not only among the concepts (`search`,
-   `read_source`), and write a `negative-case` memo about each.
+   `read_source`), and write a `negative-case` memo about each, including its evidence mix from
+   `support(id)`.
 4. Revise themes where the dimensions show they were wrong, with a reason.
 5. Write the `batch` memo on the dimensions: the strongest alternative reading of the same themes,
    and why you chose this one.

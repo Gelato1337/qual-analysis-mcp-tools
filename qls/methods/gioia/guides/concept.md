@@ -43,6 +43,9 @@ empty rather than inventing one.
   reason for overriding the score"), not "relevant".
 - The quote must be the informant's. Agreement with the interviewer's suggestion is weak evidence;
   say so in the reason if you use it.
+- Label each quote `prompted`: `spontaneous` (raised by the informant), `prompted` (the question
+  named the topic) or `agreement` (only agreeing with the interviewer). Look at the question right
+  before the answer. Follow the codebook's `scope` rules for parts of the interview guide.
 
 ## New concept or existing one?
 

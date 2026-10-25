@@ -27,8 +27,20 @@ from .util import QlsError
 MEMO_KINDS = ["meaning", "informant", "surprise", "uncertainty", "residual", "method", "negative-case", "summary", "reflexive"]
 MEMO_LEVELS = ["note", "interview", "batch", "corpus"]
 QUOTE_THRESHOLD = 95  # below this, a quote is refused; at or above, the source's own words are stored
+PROMPTING = ["spontaneous", "prompted", "agreement"]
+_WORD = re.compile(r"[^\W\d_]{4,}")
 
-READ_TOOLS = ["intent", "method_guide", "guide", "ways_of_working", "list_sources", "read_source", "search", "get", "pack",
+
+def _stems(text: str) -> set[str]:
+    """Crude, language-neutral word stems (first 5 letters), enough to see whether a quote repeats its question."""
+    return {w.lower()[:5] for w in _WORD.findall(text or "")}
+
+
+def question_overlap(quote: str, question: str | None) -> float:
+    qs = _stems(quote)
+    return round(len(qs & _stems(question or "")) / len(qs), 3) if qs else 0.0
+
+READ_TOOLS = ["intent", "method_guide", "guide", "support", "ways_of_working", "list_sources", "read_source", "search", "get", "pack",
               "codebook", "memos", "query", "status", "check", "feedback", "history"]
 WRITE_TOOLS = ["begin", "add_evidence", "add_to_group", "remove_from_group", "revise", "merge", "withdraw", "memo",
                "propose_codebook", "checkpoint"]
@@ -257,19 +269,50 @@ class Session:
         made[key] = info
         return info
 
-    def _quotes(self, ctx: _Ctx, specs: list[dict], default_source: str | None, need_reason: bool = True) -> tuple[list, list]:
+    @property
+    def _labels(self) -> bool:
+        """Runs whose schema records how each quote came about (core schemas from Oct 2026 on)."""
+        return "attribute prompting" in self.m.core
+
+    def _quotes(self, ctx: _Ctx, specs: list[dict], default_source: str | None, need_reason: bool = True,
+                need_label: bool = False) -> tuple[list, list]:
         if not specs:
             raise Refusal("At least one quote is needed: the evidence for this.",
-                          'quotes=[{"text": "<the informant\'s exact words>", "reason": "<why they show it>"}]')
+                          'quotes=[{"text": "<the informant\'s exact words>", "reason": "<why they show it>", "prompted": "spontaneous"}]')
+        need_label = need_label and self._labels
         queries, made, out = [], {}, []
         for i, spec in enumerate(specs, 1):
             if not isinstance(spec, dict):
                 raise Refusal(f"quote {i} must be an object with text and reason.")
             if need_reason and not str(spec.get("reason") or "").strip():
                 raise Refusal(f"quote {i} has no reason.", "Say in one line why these words show it.")
+            if need_label and spec.get("prompted") not in PROMPTING:
+                raise Refusal(f"quote {i} needs \"prompted\": spontaneous, prompted or agreement.",
+                              "spontaneous = the informant raised it themselves; prompted = the interviewer's question named the topic; "
+                              "agreement = the informant only agrees with what the interviewer said.")
             info = self._quote(ctx, spec, default_source, queries, made)
-            out.append({**info, "reason": spec.get("reason", "")})
+            item = {**info, "reason": spec.get("reason", "")}
+            if need_label:
+                unit = next((u for u in self._source(info["source"])["units"] if u["id"] == info["unit"]), {})
+                item["prompted"] = spec["prompted"]
+                item["question_overlap"] = question_overlap(info["text"], unit.get("question"))
+            out.append(item)
         return queries, out
+
+    def _evidence_attrs(self, q: dict) -> str:
+        if "prompted" not in q:
+            return ""
+        return f", has prompting {lit(q['prompted'])}, has question-overlap {q['question_overlap']}"
+
+    @staticmethod
+    def _quote_out(q: dict) -> dict:
+        out = {k: q[k] for k in ("id", "source", "unit", "text", "match") if k in q}
+        if "prompted" in q:
+            out["prompted"] = q["prompted"]
+            if q["prompted"] == "spontaneous" and q["question_overlap"] >= 0.4:
+                out["note"] = (f"labelled spontaneous, but {round(q['question_overlap'] * 100)}% of its words are in the "
+                               "question before it; kept as you labelled it, and listed for the researcher")
+        return out
 
     def _current_source(self) -> str | None:
         for e in reversed(self.L.events(self.run_id)):
@@ -450,6 +493,41 @@ class Session:
         item["memos"] = self.memos(about=id)["memos"]
         return ok(**item)
 
+    def support(self, id: str) -> dict:
+        """How the evidence behind an object came about: how many of its quotes (and informants) were raised
+        spontaneously, prompted by the interviewer's question, or mere agreement. For a group, counted over
+        all codes under it. Use it to judge how much a result rests on what the interviewer put in front of people."""
+        t = self._type(id)
+        if t is None:
+            return refuse(f"{id} does not exist.")
+        if not self._labels:
+            return refuse("This run does not record how quotes came about.")
+        codes, todo = set(), [(id, t)]
+        while todo:
+            oid, ot = todo.pop()
+            if ot == self.m.code_type:
+                codes.add(oid)
+                continue
+            g = self.m.group_of(ot)
+            if g:
+                for r in self._rows(f"match $g isa {ot}, has id {lit(oid)}; {g.relation} ({g.group_role}: $g, {g.member_role}: $m); "
+                                    f"$m has id $mid; select $mid;"):
+                    todo.append((r["mid"], g.member_type))
+        counts, informants, flagged = Counter(), {k: set() for k in PROMPTING}, []
+        for cid in codes:
+            for r in self._rows(f"match $c isa {self.m.code_type}, has id {lit(cid)}; $e isa evidence (claim: $c, quote: $q); "
+                                f"$e has prompting $p, has question-overlap $o; $q has id $qid; quoting (source: $s, quote: $q); "
+                                f"$s has id $sid; select $p, $o, $qid, $sid;"):
+                counts[r["p"]] += 1
+                informants[r["p"]].add(r["sid"])
+                if r["p"] == "spontaneous" and r["o"] >= 0.4:
+                    flagged.append(r["qid"])
+        n = sum(counts.values()) or 1
+        return ok(id=id, codes=len(codes), quotes=sum(counts.values()),
+                  share={k: round(counts[k] / n, 2) for k in PROMPTING},
+                  informants={k: len(v) for k, v in informants.items()},
+                  spontaneous_but_overlapping=len(flagged))
+
     def _code_quotes(self, cid: str) -> list[dict]:
         out = []
         for r in self._rows(f"match $c isa {self.m.code_type}, has id {lit(cid)}; $e isa evidence (claim: $c, quote: $q); $q has id $qid; "
@@ -461,10 +539,11 @@ class Session:
 
     def codebook(self, include_proposals: bool = True) -> dict:
         """The codebook: shared long-term memory of what codes mean. Approved entries, and pending proposals."""
+        kind = "try { $e has rule-kind $k; }; " if self._labels else ""
         rows = self._rows("match $e isa codebook-entry, has id $i, has label $l, has status $st; try { $e has description $d; }; "
                           "try { $e has inclusion $inc; }; try { $e has exclusion $exc; }; try { $e has version $v; }; "
-                          "try { $e has actor $a; }; select $i, $l, $st, $d, $inc, $exc, $v, $a;")
-        entries = [{"id": r["i"], "label": r["l"], "definition": r.get("d"), "use_when": r.get("inc"),
+                          f"try {{ $e has actor $a; }}; {kind}select $i, $l, $st, $d, $inc, $exc, $v, $a{', $k' if kind else ''};")
+        entries = [{"id": r["i"], "kind": r.get("k") or "code", "label": r["l"], "definition": r.get("d"), "use_when": r.get("inc"),
                     "not_when": r.get("exc"), "status": r["st"], "version": r.get("v"), "by": r.get("a")}
                    for r in rows if include_proposals or r["st"] == "active"]
         return ok(version=self.L.counter(self.run_id, "CBV"), entries=sorted(entries, key=lambda e: _num(e["id"])))
@@ -564,7 +643,7 @@ class Session:
         default_source = kw.get("source") or self._current_source()
 
         def build(ctx):
-            queries, quotes = self._quotes(ctx, kw.get("quotes") or [], default_source)
+            queries, quotes = self._quotes(ctx, kw.get("quotes") or [], default_source, need_label=True)
             cid = ctx.new_id(self.m.prefix(a.type))
             cbv = self.L.counter(self.run_id, "CBV")
             queries.append(f"insert $c isa {a.type}, has id {lit(cid)}{attrs}{ctx.stamp}, has codebook-version {cbv};")
@@ -574,7 +653,7 @@ class Session:
                     continue
                 seen.add(q["id"])
                 queries.append(f"match $c isa {a.type}, has id {lit(cid)}; $q isa quote, has id {lit(q['id'])}; "
-                               f"insert $e isa evidence (claim: $c, quote: $q), has reason {lit(q['reason'])}{ctx.stamp};")
+                               f"insert $e isa evidence (claim: $c, quote: $q), has reason {lit(q['reason'])}{self._evidence_attrs(q)}{ctx.stamp};")
             placed = []
             if a.into:   # placed in its groups in the same transaction, each with a reason
                 g = next(x for x in self.m.groups if x.type == a.into and x.member_type == a.type)
@@ -591,7 +670,7 @@ class Session:
                     queries.append(f"match $g isa {a.into}, has id {lit(gid)}; $m isa {a.type}, has id {lit(cid)}; "
                                    f"insert $r isa {g.relation} ({g.group_role}: $g, {g.member_role}: $m), has reason {lit(it['reason'])}{ctx.stamp};")
                     placed.append(gid)
-            out = {"id": cid, "quotes": [{k: q[k] for k in ("id", "source", "unit", "text", "match")} for q in quotes]}
+            out = {"id": cid, "quotes": [self._quote_out(q) for q in quotes]}
             if a.into:
                 out[a.into_param] = placed
             return queries, out
@@ -647,20 +726,21 @@ class Session:
     # ------------------------------------------------------------------ write: core actions
 
     def add_evidence(self, code: str, quotes: list[dict]) -> dict:
-        """Add more quotes to an existing code: [{"text": exact words, "reason": why, "source": optional}]."""
+        """Add more quotes to an existing code: [{"text": exact words, "reason": why, "prompted": spontaneous | prompted |
+        agreement, "source": optional}]."""
         default_source = self._current_source()
 
         def build(ctx):
             t = self._need(code, [self.m.code_type])
             self._may_edit(t)
             have = {x["quote"] for x in self._code_quotes(code)}
-            queries, qs = self._quotes(ctx, quotes, default_source)
+            queries, qs = self._quotes(ctx, quotes, default_source, need_label=True)
             for q in qs:
                 if q["id"] not in have:
                     have.add(q["id"])
                     queries.append(f"match $c isa {t}, has id {lit(code)}; $q isa quote, has id {lit(q['id'])}; "
-                                   f"insert $e isa evidence (claim: $c, quote: $q), has reason {lit(q['reason'])}{ctx.stamp};")
-            return queries, {"id": code, "quotes": [{k: q[k] for k in ("id", "source", "unit", "text", "match")} for q in qs]}
+                                   f"insert $e isa evidence (claim: $c, quote: $q), has reason {lit(q['reason'])}{self._evidence_attrs(q)}{ctx.stamp};")
+            return queries, {"id": code, "quotes": [self._quote_out(q) for q in qs]}
 
         return self._write("add_evidence", {"code": code, "quotes": quotes}, build)
 
@@ -891,9 +971,11 @@ class Session:
         return self._write("memo", {"about": about, "kind": kind, "level": level, "cites": cites, "text": text}, build)
 
     def propose_codebook(self, label: str, definition: str, use_when: str = "", not_when: str = "",
-                         examples: list[dict] | None = None, replaces: str | None = None) -> dict:
-        """Propose a codebook entry (the shared long-term memory): label, definition, when to use it, when not,
-        and example quotes [{"text", "reason", "source"}]. replaces: an entry this one would replace.
+                         examples: list[dict] | None = None, replaces: str | None = None, kind: str = "code") -> dict:
+        """Propose a codebook entry: an agreed rule. kind "code" (default): what a code means: label, definition,
+        when to use it, when not, example quotes [{"text", "reason", "source"}]. kind "scope": how answers to one
+        part of the interview guide count for the research question: label = the guide part, definition = the
+        rule, use_when / not_when = what counts and what does not. replaces: an entry this one would replace.
         The researcher approves; a researcher's own entries are approved at once."""
         human = is_human(self.actor)
         default_source = self._current_source()
@@ -905,7 +987,11 @@ class Session:
                 self._need(replaces, ["codebook-entry"])
             queries, qs = self._quotes(ctx, examples, default_source) if examples else ([], [])
             eid = ctx.new_id("CB")
+            if kind not in ("code", "scope"):
+                raise Refusal(f"kind is code or scope, not {kind!r}.")
             extra = "".join(f", has {a} {lit(v)}" for a, v in (("inclusion", use_when), ("exclusion", not_when)) if v.strip())
+            if self._labels:
+                extra += f", has rule-kind {lit(kind)}"
             result = {"id": eid, "status": "active" if human else "proposed"}
             if human:
                 v = self.L.counter(self.run_id, "CBV") + 1
@@ -923,7 +1009,7 @@ class Session:
             return queries, result
 
         params = {"label": label, "definition": definition, "use_when": use_when, "not_when": not_when,
-                  "examples": examples or [], "replaces": replaces}
+                  "examples": examples or [], "replaces": replaces, "kind": kind}
         return self._write("propose_codebook", params, build)
 
     def checkpoint(self, summary: str, questions: list[str] | None = None) -> dict:

@@ -33,6 +33,11 @@ define
   attribute stance, value string;
   attribute sensitizing, value string;
   attribute prior-research, value string;
+  # how a quoted passage came about, relative to the interviewer: raised by the informant unprompted,
+  # an answer to a question that named the topic, or mere agreement with the interviewer
+  attribute prompting, value string @values("spontaneous", "prompted", "agreement");
+  attribute question-overlap, value double;     # share of the quote's word stems found in the question before it
+  attribute rule-kind, value string @values("code", "scope");   # codebook: how to code, or what counts for the question
 
   # -- intent: the only predefined content -------------------------------------
   # One per run: what the study asks and how. Findings are expected to depend on it.
@@ -66,7 +71,7 @@ define
 
   relation quoting, relates source @card(1..1), relates quote @card(1..1);
   relation evidence, relates claim @card(1..1), relates quote @card(1..1),
-    owns reason @card(1..1), owns actor, owns event;
+    owns reason @card(1..1), owns prompting, owns question-overlap, owns actor, owns event;
   relation answering, relates answer @card(1..1), relates question @card(1..1),
     owns reason @card(1..1), owns actor, owns event;
 
@@ -81,7 +86,7 @@ define
   # (status "proposed"); a researcher approves (status "active", with a version).
   entity codebook-entry,
     owns id @key, owns label, owns description, owns inclusion, owns exclusion,
-    owns version, owns status, owns actor, owns event,
+    owns version, owns status, owns rule-kind, owns actor, owns event,
     plays exemplar:entry, plays about:target;
 
   relation about, relates memo @card(1..1), relates target @card(1..1);

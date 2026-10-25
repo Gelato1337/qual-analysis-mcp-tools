@@ -30,7 +30,8 @@ actions:
     type: concept
     doc: >
       Add a 1st-order concept with its evidence in one call. quotes: [{"text": the informant's exact
-      words, "reason": why they show this concept}] (add "source" if you have not called begin()).
+      words, "reason": why they show this concept, "prompted": spontaneous | prompted | agreement}]
+      (add "source" if you have not called begin()).
       Quotes are checked against the transcript now; if one is not found, nothing is saved.
   add_theme:
     kind: create_group

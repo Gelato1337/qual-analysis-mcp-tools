@@ -22,6 +22,8 @@ which it does not hold, concepts that pull the other way, interviews where it is
 dimension existed.
 
 Write a `negative-case` memo about each dimension, even when you found nothing: say where you looked.
+Include its evidence mix from `support(id)`: how much of it informants raised spontaneously and how
+much only when the interviewer asked, and what that means for the dimension.
 A dimension with real counter-evidence is not wrong; it has a boundary, and the memo states it.
 
 ## The grounded model

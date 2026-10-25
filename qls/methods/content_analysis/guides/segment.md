@@ -15,7 +15,9 @@ quotes of the same segment.
   code two segments.
 - `label`: what the informant says, in a short English phrase, close to their terms: "export orders
   collapsed when the main customer moved production", not "external decelerating factor".
-- quotes: the shortest span that carries it, copied exactly, each with a reason.
+- quotes: the shortest span that carries it, copied exactly, each with a reason and a `prompted`
+  label: `spontaneous` (raised by the informant), `prompted` (the question named the topic) or
+  `agreement` (only agreeing with the interviewer). Follow the codebook's `scope` rules.
 - `categories`: every category it belongs to, each with a one-line reason. A passage about a key
   customer leaving can be both external and decelerating.
 

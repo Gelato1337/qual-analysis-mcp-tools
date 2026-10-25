@@ -36,7 +36,7 @@ def s(p):
 
 def concept(s, label, text, source="P01"):
     return s.act("add_concept", label=label, description=f"about {label}",
-                 quotes=[{"source": source, "text": text, "reason": "says it"}])
+                 quotes=[{"source": source, "text": text, "reason": "says it", "prompted": "spontaneous"}])
 
 
 def test_concept_and_quote_in_one_call(s):
@@ -57,7 +57,7 @@ def test_concept_and_quote_in_one_call(s):
 def test_begin_sets_default_source(s):
     b = s.begin("P02")
     assert b["ok"] and "[P02:s005]" in b["transcript"]
-    r = s.act("add_concept", label="seniors", description="d", quotes=[{"text": "Finding senior people.", "reason": "r"}])
+    r = s.act("add_concept", label="seniors", description="d", quotes=[{"text": "Finding senior people.", "reason": "r", "prompted": "prompted"}])
     assert r["ok"] and r["quotes"][0]["source"] == "P02"
     assert s.list_sources()[1]["read_by"] == ["agent:a"]
 
@@ -218,14 +218,14 @@ def test_content_analysis_method(tmp_path):
         k1 = a.act("add_category", label="External accelerating", description="d", origin="guide")
         k2 = a.act("add_category", label="Customers", description="d", origin="guide")
         assert k1["ok"] and k2["ok"] and k1["id"] == "K-1"          # a category may start empty
-        bad = a.act("code_segment", label="x", quotes=[{"source": "P01", "text": Q_RELEASE, "reason": "r"}],
+        bad = a.act("code_segment", label="x", quotes=[{"source": "P01", "text": Q_RELEASE, "reason": "r", "prompted": "spontaneous"}],
                     categories=[{"id": "K-1", "reason": "r"}])
         assert not bad["ok"] and "not part of stage frame" in bad["error"]
         h.set_stage("guide_coding")
-        none = a.act("code_segment", label="x", quotes=[{"source": "P01", "text": Q_RELEASE, "reason": "r"}])
+        none = a.act("code_segment", label="x", quotes=[{"source": "P01", "text": Q_RELEASE, "reason": "r", "prompted": "spontaneous"}])
         assert not none["ok"] and "categories" in none["error"]
         s = a.act("code_segment", label="clients want faster releases", period="2020", direction="accelerating",
-                  quotes=[{"source": "P01", "text": Q_RELEASE, "reason": "says it"}],
+                  quotes=[{"source": "P01", "text": Q_RELEASE, "reason": "says it", "prompted": "spontaneous"}],
                   categories=[{"id": "K-1", "reason": "outside pressure"}, {"id": "K-2", "reason": "about clients"}])
         assert s["ok"] and s["categories"] == ["K-1", "K-2"]          # one passage, two categories
         assert not a.act("add_category", label="y", description="d", origin="emergent")["ok"]   # not in this stage
@@ -238,3 +238,29 @@ def test_content_analysis_method(tmp_path):
         for r in p.ledger.runs():
             p.graph.drop(p.db_name(r["id"]))
         p.graph.close()
+
+
+
+def test_quote_labels_support_and_scope_rules(p, s):
+    from qls.method import load_method
+
+    q = {"source": "P01", "text": Q_RELEASE, "reason": "r"}
+    no = s.act("add_concept", label="x", description="d", quotes=[q])
+    assert not no["ok"] and "prompted" in no["error"]                       # the label is required
+    bad = s.act("add_concept", label="x", description="d", quotes=[{**q, "prompted": "maybe"}])
+    assert not bad["ok"] and "spontaneous, prompted or agreement" in bad["error"]
+    c1 = s.act("add_concept", label="releases", description="d", quotes=[{**q, "prompted": "spontaneous"}])
+    c2 = s.act("add_concept", label="seniors", description="d", quotes=[{"source": "P02", "text": "Finding senior people.", "reason": "r", "prompted": "prompted"}])
+    assert c1["ok"] and c2["ok"] and c1["quotes"][0]["prompted"] == "spontaneous"
+    t1 = s.act("add_theme", label="t", description="d", concepts=[{"id": c1["id"], "reason": "r"}, {"id": c2["id"], "reason": "r"}])
+    sup = s.support(t1["id"])
+    assert sup["ok"] and sup["quotes"] == 2 and sup["share"]["spontaneous"] == 0.5 and sup["informants"]["prompted"] == 1
+    assert s.add_evidence(c1["id"], [{"source": "P03", "text": "Legacy systems.", "reason": "r"}])["ok"] is False   # label needed here too
+    sc = s.propose_codebook("Slides on process models", "Answers count only where change over time is described",
+                            use_when="the informant describes a change", not_when="opinions about a model shown", kind="scope")
+    assert sc["ok"] and s.codebook()["entries"][0]["kind"] == "scope"
+    assert not s.propose_codebook("x", "y", kind="rule")["ok"]
+    # the run keeps working after its method changes: the project holds a copy of the version it was made with
+    m = s.m
+    stored = p.root / "methods" / m.hash.split(":")[-1][:16]
+    assert stored.is_dir() and load_method(str(stored)).hash == s.run["method_hash"]

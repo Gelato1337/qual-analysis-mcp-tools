@@ -142,6 +142,9 @@ mark.sel { background: color-mix(in srgb, var(--l1) 30%, var(--surface)); border
 .ccard .chead b { font-weight: 500 }
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: var(--r); overflow: hidden }
 .seg button { background: var(--surface); border: 0; padding: 4px 10px; font-size: .82rem } .seg button[aria-pressed="true"] { background: var(--sunk); font-weight: 500 }
+.chip.pl-spontaneous { border-color: var(--good); color: var(--good) } .chip.pl-prompted { border-color: var(--warn); color: var(--warn) } .chip.pl-agreement { border-color: var(--bad); color: var(--bad) }
+.sup { display: inline-flex; width: 90px; height: 8px; border-radius: 4px; overflow: hidden; vertical-align: middle; gap: 1px; background: var(--sunk) }
+.sup i { display: block; height: 100% } .sup i.pl-spontaneous { background: var(--good) } .sup i.pl-prompted { background: var(--warn) } .sup i.pl-agreement { background: var(--bad) }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important } }
 </style>
 </head>
@@ -202,6 +205,19 @@ const FIELD_NAME = {in_vivo: "in vivo", period: "when", direction: "direction", 
 const fieldChips = o => Object.entries(o.fields || {}).filter(([k, v]) => v && k !== "in_vivo")
   .map(([k, v]) => `<span class="chip">${esc(FIELD_NAME[k] || k)}: ${k === "parent" && byId[v] ? esc(v) : esc(v)}</span>`).join(" ");
 const placedIn = o => (o.in || []).map(x => `${tag(x.id)} ${clink(x.id)}`).join(" · ");
+/* how the evidence came about: spontaneous / prompted / agreement (runs that record it) */
+const LABELS = ["spontaneous", "prompted", "agreement"], HASLABELS = codes.some(c => c.quotes.some(q => q.prompted));
+const pchip = q => q.prompted ? `<span class="chip pl-${q.prompted}" title="${q.overlap != null ? Math.round(q.overlap * 100) + "% of its words are in the question before it" : ""}">${q.prompted}${q.prompted === "spontaneous" && q.overlap >= 0.4 ? " ?" : ""}</span>` : "";
+function supportOf(o) {
+  const cs = o.type === CODE ? [o] : codes.filter(c => (c.under || []).includes(o.id));
+  const n = {spontaneous: 0, prompted: 0, agreement: 0}, inf = {spontaneous: new Set(), prompted: new Set(), agreement: new Set()};
+  for (const c of cs) for (const q of c.quotes) if (q.prompted) { n[q.prompted]++; inf[q.prompted].add(q.source); }
+  const tot = n.spontaneous + n.prompted + n.agreement;
+  return tot ? {n, tot, inf} : null;
+}
+const supportBar = o => { const s = HASLABELS && supportOf(o); if (!s) return "";
+  return `<span class="sup" title="${LABELS.map(k => `${k}: ${s.n[k]} quotes from ${s.inf[k].size} interviews`).join("&#10;")}">${LABELS.map(k => s.n[k] ? `<i class="pl-${k}" style="flex:${s.n[k]}"></i>` : "").join("")}</span>
+    <span class="muted mono">${Math.round(100 * s.n.spontaneous / s.tot)}% spontaneous · ${s.inf.spontaneous.size} interviews</span>`; };
 
 /* ---------- header ---------- */
 (function header() {
@@ -244,7 +260,8 @@ function openObj(id) {
          <h2>${esc(o.label)}</h2>${o.fields.in_vivo ? `<div class="muted">In vivo: <i>${esc(o.fields.in_vivo)}</i></div>` : ""}<div>${fieldChips(o)}</div></div>
          <div class="dbody">${o.description ? `<p>${esc(o.description)}</p>` : ""}
          <div class="eyebrow">Quotes and why they show this</div>
-         ${o.quotes.map(q => `<div class="quote"><q>${esc(q.text)}</q><span class="why"><span class="chip">${esc(q.unit)}</span> ${esc(q.reason)}</span></div>`).join("")}
+         ${HASLABELS ? `<div>${supportBar(o)}</div>` : ""}
+         ${o.quotes.map(q => `<div class="quote"><q>${esc(q.text)}</q><span class="why"><span class="chip">${esc(q.unit)}</span> ${pchip(q)} ${esc(q.reason)}</span></div>`).join("")}
          <div class="eyebrow">Placed in</div>
          ${o.in.length ? o.in.map(x => `<div class="why">${tag(x.id)} ${clink(x.id)}<br><b>Reason:</b> ${esc(x.reason)}</div>`).join("") : `<p class="muted">Not placed.</p>`}
          <div class="eyebrow">Memos about it</div>${memoList(memosAbout(id))}</div>`;
@@ -252,6 +269,7 @@ function openObj(id) {
     const kids = OBJ.filter(x => x.fields && x.fields.parent === id);
     h = `<div class="dhead"><div class="eyebrow">${esc(lvName(o))} ${tag(id)} · ${o.members.length} members · event #${o.event}</div><h2>${esc(o.label)}</h2><div>${fieldChips(o)}</div></div>
          <div class="dbody"><p>${esc(o.description)}</p>
+         ${HASLABELS ? `<div class="why"><b>Evidence:</b> ${supportBar(o)}</div>` : ""}
          ${o.answers ? `<div class="eyebrow">How it answers the research question</div><p>${esc(o.answers)}</p>` : ""}
          ${o.in.length ? `<div class="eyebrow">Placed in</div>${o.in.map(x => `<div class="why">${tag(x.id)} ${clink(x.id)}<br><b>Reason:</b> ${esc(x.reason)}</div>`).join("")}` : ""}
          ${kids.length ? `<div class="eyebrow">Finer categories under it</div><ul class="clist">${kids.map(k => `<li>${tag(k.id)}<div>${clink(k.id)} <span class="muted mono">${k.members.length}</span></div></li>`).join("")}</ul>` : ""}
@@ -308,7 +326,7 @@ function initReader(box) {
     return `<div class="ccard" data-cid="${c.id}"><div class="chead">${tag(c.id)}<b>${esc(c.label)}</b></div>
       ${c.description || c.fields.in_vivo ? `<div class="why">${esc(c.description)}${c.fields.in_vivo ? ` <i>(${esc(c.fields.in_vivo)})</i>` : ""}</div>` : ""}
       ${fieldChips(c) ? `<div>${fieldChips(c)}</div>` : ""}
-      ${c.quotes.filter(q => q.source === sid).map(q => `<div class="why"><span class="chip">${esc(q.unit.split(":")[1] || q.unit)}</span> ${esc(q.reason)}</div>`).join("")}
+      ${c.quotes.filter(q => q.source === sid).map(q => `<div class="why"><span class="chip">${esc(q.unit.split(":")[1] || q.unit)}</span> ${pchip(q)} ${esc(q.reason)}</div>`).join("")}
       ${c.sources.length > 1 ? `<div class="why">Also quoted from ${c.sources.filter(x => x !== sid).join(", ")}</div>` : ""}
       <div class="why">${c.in.length ? "→ " + placedIn(c) : "not placed"}${top.length ? " → " + top.map(tag).join(" ") : ""} · <button class="clink" data-open="${c.id}">details</button></div>
 </div>`; }).join("");
@@ -334,7 +352,7 @@ RENDER.structure = el => {
   el.innerHTML = `
     <p class="lede">The whole analysis: ${LV.map(l => esc(l.plural)).join(", then ")}, with every reason the agent gave.
     ${three ? "In the graph, interviews on the left feed the middle level, which feeds the top level; band width is the number of " + esc(LV[0].plural) + ". Hover a node to follow its paths." : ""}
-    Click anything to read it in full.</p>
+    Click anything to read it in full.${HASLABELS ? ` The bar next to each item shows how its evidence came about: <span class="chip pl-spontaneous">spontaneous</span> (raised by the informant), <span class="chip pl-prompted">prompted</span> (the question named the topic), <span class="chip pl-agreement">agreement</span> (only agreeing with the interviewer).` : ""}</p>
     ${three ? `<div class="legend">${LV.map((l, i) => `<span class="lvl${Math.min(3, i + 1)}"><i></i>${esc(l.plural)}</span>`).join("")}</div><div class="flow" id="flow"></div>` : ""}
     <h2>${cap(LV.slice().reverse().map(l => esc(l.plural)).join(" › "))}</h2>
     <div class="toolbar"><input type="search" id="sfilter" placeholder="Filter by word in labels, descriptions or quotes"><span class="muted" id="scount"></span></div>
@@ -367,7 +385,7 @@ function drawTree(f) {
     if (f && !cs.length && !kidHtml) return "";
     const infs = new Set(g.members.flatMap(m => byId[m.id]?.sources || []));
     const why = parentHead ? (g.in.find(x => x.id === parentHead.id) || {}).reason : "";
-    return `<details class="theme ${lvl(g.id)}"${f ? " open" : ""} style="margin-left:${depth * 18}px"><summary>${tag(g.id)}<span>${esc(g.label)}</span><span class="muted mono">${g.members.length} · ${infs.size} interviews${kids.length ? ` · ${kids.length} finer` : ""}</span></summary>
+    return `<details class="theme ${lvl(g.id)}"${f ? " open" : ""} style="margin-left:${depth * 18}px"><summary>${tag(g.id)}<span>${esc(g.label)}</span><span class="muted mono">${g.members.length} · ${infs.size} interviews${kids.length ? ` · ${kids.length} finer` : ""} ${supportBar(g)}</span></summary>
       <div class="tbody"><div class="why">${esc(g.description)}</div>${why ? `<div class="why"><b>Why in ${parentHead.id}:</b> ${esc(why)}</div>` : ""}
       ${kidHtml}<ul class="clist">${cs.map(c => `<li>${tag(c.id)}<div>${clink(c.id)} <span class="chip">${c.sources.join(" ")}</span> ${fieldChips({fields: Object.fromEntries(Object.entries(c.fields).filter(([k]) => k === "period" || k === "direction"))})}<div class="why">${esc(c.reason)}</div></div></li>`).join("")}</ul></div></details>`;
   };
@@ -375,7 +393,7 @@ function drawTree(f) {
     const inner = sec.groups.map(g => groupBlock(g, sec.head)).join("");
     if (f && !inner) return "";
     const head = sec.head ? `<div class="eyebrow">${tag(sec.head.id)} ${esc(lvName(sec.head))}</div><h3><button class="clink" data-open="${sec.head.id}">${esc(sec.head.label)}</button></h3>
-      ${sec.head.answers ? `<div class="ans"><b>Answers:</b> ${esc(sec.head.answers)}</div>` : ""}` : `<div class="eyebrow">${esc(sec.label)}</div>`;
+      ${sec.head.answers ? `<div class="ans"><b>Answers:</b> ${esc(sec.head.answers)}</div>` : ""}${HASLABELS ? `<div class="why"><b>Evidence:</b> ${supportBar(sec.head)}</div>` : ""}` : `<div class="eyebrow">${esc(sec.label)}</div>`;
     return `<div class="dimcard">${head}<div class="themes">${inner}</div></div>`;
   }).join("");
   const orphans = codes.filter(c => !c.in.length && hit(c));
@@ -528,8 +546,8 @@ RENDER.interviews = el => {
 /* ---------- view: codebook ---------- */
 RENDER.codebook = el => {
   el.innerHTML = `<p class="lede">The shared long-term memory the agents coded by. Agents proposed entries; the researcher (or, in an AI-only run, the policy standing in for them) approved them.</p>
-    <div class="tablewrap"><table><thead><tr><th>Entry</th><th>Definition</th><th>Use when</th><th>Do not use when</th><th>Status</th></tr></thead><tbody>
-    ${D.codebook.map(c => `<tr><td style="min-width:200px"><span class="chip">${c.id}</span> <b>${esc(c.label)}</b></td><td style="min-width:240px">${esc(c.definition)}</td><td style="min-width:200px">${esc(c.use_when || "")}</td><td style="min-width:200px">${esc(c.not_when || "")}</td><td class="mono">${esc(c.status)} v${c.version ?? ""}</td></tr>`).join("")}
+    <div class="tablewrap"><table><thead><tr><th>Entry</th><th>Kind</th><th>Definition</th><th>Use when</th><th>Do not use when</th><th>Status</th></tr></thead><tbody>
+    ${D.codebook.map(c => `<tr><td style="min-width:200px"><span class="chip">${c.id}</span> <b>${esc(c.label)}</b></td><td class="mono">${esc(c.kind || "code")}</td><td style="min-width:240px">${esc(c.definition)}</td><td style="min-width:200px">${esc(c.use_when || "")}</td><td style="min-width:200px">${esc(c.not_when || "")}</td><td class="mono">${esc(c.status)} v${c.version ?? ""}</td></tr>`).join("")}
     </tbody></table></div>`;
 };
 

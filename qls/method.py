@@ -73,6 +73,8 @@ class Method:
     actions: dict[str, Action]
     checks: list[dict] = field(default_factory=list)
     stages: list[dict] = field(default_factory=list)
+    core: str = ""                    # the core schema this method version was built on
+    files: dict[str, str] = field(default_factory=dict)   # every file of this method version, by relative path
     guides: dict[str, str] = field(default_factory=dict)
     tasks: dict[str, str] = field(default_factory=dict)
     hash: str = ""
@@ -150,6 +152,8 @@ def load_method(name_or_path: str) -> Method:
     if d.joinpath("stages.yaml").is_file():
         files["stages.yaml"] = d.joinpath("stages.yaml").read_text(encoding="utf-8")
     guides, tasks = _md_files(d, "guides"), _md_files(d, "stages")
+    # a stored method version carries its own copy of the core schema (see Project.snapshot_method)
+    core = d.joinpath("core.tql").read_text(encoding="utf-8") if d.joinpath("core.tql").is_file() else core_schema()
     raw = yaml.safe_load(files["actions.yaml"])
     fields = {t: [Field(param=k, attr=v.get("attr", k), required=bool(v.get("required")), doc=v.get("doc", ""))
                   for k, v in (spec or {}).items()] for t, spec in (raw.get("fields") or {}).items()}
@@ -175,9 +179,11 @@ def load_method(name_or_path: str) -> Method:
     m = Method(name=raw["name"], title=raw.get("title", raw["name"]), version=int(raw.get("version", 1)), root=root,
                schema=files["schema.tql"], guide=files["method.md"], raw=raw, prefixes=raw.get("prefixes") or {},
                fields=fields, groups=groups, actions=actions, checks=raw.get("checks") or [], stages=stages,
-               guides=guides, tasks=tasks)
+               guides=guides, tasks=tasks, core=core)
     parts = [files[f] for f in ("schema.tql", "actions.yaml", "method.md")]
     parts += [files["stages.yaml"]] if "stages.yaml" in files else []
     parts += [f"guides/{k}\n{v}" for k, v in guides.items()] + [f"stages/{k}\n{v}" for k, v in tasks.items()]
-    m.hash = sha256_text(core_schema() + "\n" + "\n".join(parts))
+    m.hash = sha256_text(core + "\n" + "\n".join(parts))
+    m.files = {**files, **{f"guides/{k}.md": v for k, v in guides.items()}, **{f"stages/{k}.md": v for k, v in tasks.items()},
+               "core.tql": core}
     return m
