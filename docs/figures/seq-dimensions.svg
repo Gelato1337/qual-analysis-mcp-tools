@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 564" width="900" height="564" font-family="Helvetica, Arial, sans-serif" font-size="13" fill="#16191f">
+<title>Sequence: Aggregate dimensions</title>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#16191f"/></marker></defs>
+<rect x="40" y="10" width="150" height="44" fill="#ffffff" stroke="#16191f" stroke-width="1.5"/>
+<text x="115" y="31" text-anchor="middle" font-weight="700">Pipeline</text>
+<text x="115" y="47" text-anchor="middle" font-size="12" fill="#5d6470">code</text>
+<line x1="115" y1="54" x2="115" y2="514" stroke="#d5d9df" stroke-width="1.5" stroke-dasharray="4 4"/>
+<rect x="270" y="10" width="150" height="44" fill="#ffffff" stroke="#16191f" stroke-width="1.5"/>
+<text x="345" y="31" text-anchor="middle" font-weight="700">AI model</text>
+<text x="345" y="47" text-anchor="middle" font-size="12" fill="#5d6470">in Claude Code</text>
+<line x1="345" y1="54" x2="345" y2="514" stroke="#d5d9df" stroke-width="1.5" stroke-dasharray="4 4"/>
+<rect x="500" y="10" width="150" height="44" fill="#ffffff" stroke="#16191f" stroke-width="1.5"/>
+<text x="575" y="31" text-anchor="middle" font-weight="700">MCP server</text>
+<text x="575" y="47" text-anchor="middle" font-size="12" fill="#5d6470">checks</text>
+<line x1="575" y1="54" x2="575" y2="514" stroke="#d5d9df" stroke-width="1.5" stroke-dasharray="4 4"/>
+<rect x="730" y="10" width="150" height="44" fill="#ffffff" stroke="#16191f" stroke-width="1.5"/>
+<text x="805" y="31" text-anchor="middle" font-weight="700">Record</text>
+<text x="805" y="47" text-anchor="middle" font-size="12" fill="#5d6470">database + log</text>
+<line x1="805" y1="54" x2="805" y2="514" stroke="#d5d9df" stroke-width="1.5" stroke-dasharray="4 4"/>
+<line x1="115" y1="80" x2="343" y2="80" stroke="#16191f" stroke-width="1.5" marker-end="url(#ah)"/>
+<text x="230" y="73" text-anchor="middle">&quot;Build the dimensions&quot;</text>
+<line x1="345" y1="114" x2="573" y2="114" stroke="#16191f" stroke-width="1.5" marker-end="url(#ah)"/>
+<text x="460" y="107" text-anchor="middle">list the themes</text>
+<line x1="575" y1="148" x2="347" y2="148" stroke="#16191f" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#ah)"/>
+<text x="460" y="141" text-anchor="middle">all themes</text>
+<rect x="250" y="164" width="630" height="260" rx="4" fill="none" stroke="#5d6470" stroke-width="1.2"/>
+<text x="258" y="178" font-size="12" font-weight="700" fill="#5d6470">↻ for each dimension</text>
+<line x1="345" y1="202" x2="573" y2="202" stroke="#16191f" stroke-width="1.5" marker-end="url(#ah)"/>
+<text x="460" y="195" text-anchor="middle">add dimension + themes + how it answers the question</text>
+<rect x="262" y="218" width="386" height="60" rx="4" fill="#fde7da" stroke="#c2410c" stroke-width="1.2"/>
+<text x="270" y="232" font-size="12" font-weight="700" fill="#c2410c">if there is no answer to the question</text>
+<line x1="575" y1="256" x2="347" y2="256" stroke="#16191f" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#ah)"/>
+<text x="460" y="249" text-anchor="middle">refused</text>
+<line x1="575" y1="300" x2="803" y2="300" stroke="#16191f" stroke-width="1.5" marker-end="url(#ah)"/>
+<text x="690" y="293" text-anchor="middle">save + log</text>
+<line x1="345" y1="334" x2="573" y2="334" stroke="#16191f" stroke-width="1.5" marker-end="url(#ah)"/>
+<text x="460" y="327" text-anchor="middle">search the interviews for counter-evidence</text>
+<line x1="575" y1="368" x2="347" y2="368" stroke="#16191f" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#ah)"/>
+<text x="460" y="361" text-anchor="middle">passages</text>
+<line x1="345" y1="402" x2="573" y2="402" stroke="#16191f" stroke-width="1.5" marker-end="url(#ah)"/>
+<text x="460" y="395" text-anchor="middle">counter-evidence note</text>
+<line x1="345" y1="446" x2="573" y2="446" stroke="#16191f" stroke-width="1.5" marker-end="url(#ah)"/>
+<text x="460" y="439" text-anchor="middle">checkpoint</text>
+<line x1="575" y1="480" x2="803" y2="480" stroke="#16191f" stroke-width="1.5" marker-end="url(#ah)"/>
+<text x="690" y="473" text-anchor="middle">run waits</text>
+<rect x="40" y="520" width="840" height="36" rx="3" fill="#fde7da" stroke="#c2410c"/>
+<text x="460" y="543" text-anchor="middle">Stop: the researcher questions the answers, or forks.</text>
+</svg>

@@ -61,7 +61,7 @@ The server models four layers of memory and makes each one explicit and inspecta
 | Archive | the filing cabinet | the graph: every concept, quote, memo, decision | queried, never dumped |
 
 The **codebook is long-term memory**: it calibrates the agent once its context window can no longer
-hold what came before. It starts from calibration (2–3 interviews coded by agents and the researcher,
+hold what came before. It starts from calibration (k interviews coded by agents and the researcher,
 reviewed together) and grows in versions. Agents propose changes; the researcher (or a reconciling
 agent whose proposal the researcher approves) accepts them. Every code records the codebook version it
 was made under, so drift is measurable: re-code an early interview under codebook v5 and compare.
@@ -91,7 +91,7 @@ same structure emerge? That is the stability measure the paper needs.
 
 ```
 0 ingest      Docling → source text, turns, informant segments with offsets (immutable, versioned)
-1 calibrate   2–3 interviews: agents code, researcher codes or reviews → codebook v1        [checkpoint]
+1 calibrate   k interviews: agents code, researcher codes or reviews → codebook v1        [checkpoint]
 2 code        interviews assigned to scholars in batches, with overlap
                 per interview: context = study + codebook + this interview
                 → 1st-order concepts, each with verified quotes and reasons
@@ -231,6 +231,7 @@ never what "legacy" means or which themes exist); the heavy platform; treating o
    Proposal: one local server, database per run.
 2. Who approves codebook changes at scale: the researcher always, or a reconciling agent with the
    researcher sampling? Probably the first for the paper, the second as an experiment.
-3. Overlap rate and batch size: start with batches of 10 and 2 shared interviews per batch.
+3. Overlap rate and batch size n (optional): n follows from the model's context length and the
+   length of the interviews.
 4. Researcher interface: CLI first; a second MCP server bound to `human:` actors would let a researcher
    work through Claude while still being logged as the human.
