@@ -17,13 +17,17 @@ Every dimension rests on themes, every theme on concepts, and every concept on r
 
 | Step | The AI does | The system checks |
 |---|---|---|
-| 1. **Calibration** | Codes 3 interviews, proposes rules, asks questions | Every quote is really in the interview |
+| 1. **Calibration** | Codes k interviews (picked at random), proposes rules, asks questions | Every quote is really in the interview |
 | 2. **Concepts** | Codes the other interviews, one at a time | Same quote check; no jumping ahead |
 | 3. **Themes** | Groups concepts into themes | A theme has 2+ concepts, each with a reason |
 | 4. **Dimensions** | Groups themes, says how each answers the question | Each dimension answers the question and has been checked against counter-evidence |
 | 5. **Revision** | Rechecks the whole structure | Nothing is left open |
 
 After each step the AI stops, so the researcher can look before it goes on.
+
+![The stages: what the model is given, what the AI does, what the system checks, where the researcher steps in](figures/stages.svg)
+
+Each step as a sequence of calls: [figures.md](figures.md).
 
 ## Step 1: let the AI run to the end
 
@@ -80,4 +84,4 @@ Either way, a correction can be an edit to the current version or a new branch. 
 
 ---
 
-Technical details: [README](../README.md) · design: [pipeline.md](pipeline.md) · projects: [projects.md](projects.md)
+Technical details: [README](../README.md) · design: [pipeline.md](pipeline.md) · figures: [figures.md](figures.md) · projects: [projects.md](projects.md)

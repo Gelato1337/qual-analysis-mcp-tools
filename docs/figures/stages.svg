@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 435" width="1280" height="435" font-family="Helvetica, Arial, sans-serif" font-size="13" fill="#16191f">
+<title>Pipeline stages and what happens in each</title>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<rect x="148" y="24" width="176" height="48" fill="#ffffff" stroke="#16191f" stroke-width="1.5"/>
+<text x="158" y="45" font-family="Georgia, 'Times New Roman', serif" font-size="14" font-weight="600">Calibration</text>
+<text x="158" y="62" font-size="11.5" fill="#5d6470">1 session · k interviews</text>
+<rect x="344" y="24" width="176" height="48" fill="#ffffff" stroke="#16191f" stroke-width="1.5"/>
+<text x="354" y="45" font-family="Georgia, 'Times New Roman', serif" font-size="14" font-weight="600">1st-order concepts</text>
+<text x="354" y="62" font-size="11.5" fill="#5d6470">1 session per interview</text>
+<text x="334.0" y="53" text-anchor="middle" font-size="16">→</text>
+<rect x="540" y="24" width="176" height="48" fill="#ffffff" stroke="#16191f" stroke-width="1.5"/>
+<text x="550" y="45" font-family="Georgia, 'Times New Roman', serif" font-size="14" font-weight="600">2nd-order themes</text>
+<text x="550" y="62" font-size="11.5" fill="#5d6470">1 session</text>
+<text x="530.0" y="53" text-anchor="middle" font-size="16">→</text>
+<rect x="736" y="24" width="176" height="48" fill="#ffffff" stroke="#16191f" stroke-width="1.5"/>
+<text x="746" y="45" font-family="Georgia, 'Times New Roman', serif" font-size="14" font-weight="600">Aggregate dimensions</text>
+<text x="746" y="62" font-size="11.5" fill="#5d6470">1 session</text>
+<text x="726.0" y="53" text-anchor="middle" font-size="16">→</text>
+<rect x="932" y="24" width="176" height="48" fill="#ffffff" stroke="#16191f" stroke-width="1.5"/>
+<text x="942" y="45" font-family="Georgia, 'Times New Roman', serif" font-size="14" font-weight="600">Revision</text>
+<text x="942" y="62" font-size="11.5" fill="#5d6470">1 session</text>
+<text x="922.0" y="53" text-anchor="middle" font-size="16">→</text>
+<text x="24" y="110.0" font-size="10.5" font-weight="700" letter-spacing="0.6" fill="#5d6470">MODEL IS GIVEN</text>
+<rect x="148" y="82" width="176" height="48" fill="#dff2ef" stroke="#0d7d70" stroke-width="1.5"/>
+<text x="157" y="102" font-size="12.5">Brief, method guide, k</text>
+<text x="157" y="118" font-size="12.5">transcripts</text>
+<rect x="344" y="82" width="176" height="48" fill="#dff2ef" stroke="#0d7d70" stroke-width="1.5"/>
+<text x="353" y="102" font-size="12.5">One transcript, the</text>
+<text x="353" y="118" font-size="12.5">codebook, earlier notes</text>
+<rect x="540" y="82" width="176" height="48" fill="#dff2ef" stroke="#0d7d70" stroke-width="1.5"/>
+<text x="549" y="102" font-size="12.5">All concepts and notes;</text>
+<text x="549" y="118" font-size="12.5">prior research</text>
+<rect x="736" y="82" width="176" height="48" fill="#dff2ef" stroke="#0d7d70" stroke-width="1.5"/>
+<text x="745" y="102" font-size="12.5">Themes with their</text>
+<text x="745" y="118" font-size="12.5">evidence</text>
+<rect x="932" y="82" width="176" height="48" fill="#dff2ef" stroke="#0d7d70" stroke-width="1.5"/>
+<text x="941" y="102" font-size="12.5">The whole structure</text>
+<text x="24" y="182.0" font-size="10.5" font-weight="700" letter-spacing="0.6" fill="#5d6470">AI DOES</text>
+<rect x="148" y="138" width="176" height="80" fill="#ffffff" stroke="#16191f" stroke-width="1.5"/>
+<text x="157" y="158" font-size="12.5">Codes concepts with</text>
+<text x="157" y="174" font-size="12.5">quotes; proposes</text>
+<text x="157" y="190" font-size="12.5">codebook rules; asks</text>
+<text x="157" y="206" font-size="12.5">questions</text>
+<rect x="344" y="138" width="176" height="80" fill="#ffffff" stroke="#16191f" stroke-width="1.5"/>
+<text x="353" y="158" font-size="12.5">Reuses or adds concepts;</text>
+<text x="353" y="174" font-size="12.5">notes what does not fit</text>
+<rect x="540" y="138" width="176" height="80" fill="#ffffff" stroke="#16191f" stroke-width="1.5"/>
+<text x="549" y="158" font-size="12.5">Groups concepts into</text>
+<text x="549" y="174" font-size="12.5">themes, with a reason</text>
+<text x="549" y="190" font-size="12.5">each</text>
+<rect x="736" y="138" width="176" height="80" fill="#ffffff" stroke="#16191f" stroke-width="1.5"/>
+<text x="745" y="158" font-size="12.5">Groups themes; says how</text>
+<text x="745" y="174" font-size="12.5">each answers the</text>
+<text x="745" y="190" font-size="12.5">question; looks for</text>
+<text x="745" y="206" font-size="12.5">counter-evidence</text>
+<rect x="932" y="138" width="176" height="80" fill="#ffffff" stroke="#16191f" stroke-width="1.5"/>
+<text x="941" y="158" font-size="12.5">Fixes what does not hold;</text>
+<text x="941" y="174" font-size="12.5">explains how dimensions</text>
+<text x="941" y="190" font-size="12.5">connect</text>
+<text x="24" y="254.0" font-size="10.5" font-weight="700" letter-spacing="0.6" fill="#5d6470">SYSTEM CHECKS</text>
+<rect x="148" y="226" width="176" height="48" fill="#e9ecf1" stroke="#d5d9df" stroke-width="1.5"/>
+<text x="157" y="246" font-size="12.5">Quote is word for word in</text>
+<text x="157" y="262" font-size="12.5">the interview</text>
+<rect x="344" y="226" width="176" height="48" fill="#e9ecf1" stroke="#d5d9df" stroke-width="1.5"/>
+<text x="353" y="246" font-size="12.5">Same check; no memory</text>
+<text x="353" y="262" font-size="12.5">between interviews</text>
+<rect x="540" y="226" width="176" height="48" fill="#e9ecf1" stroke="#d5d9df" stroke-width="1.5"/>
+<text x="549" y="246" font-size="12.5">2+ concepts per theme;</text>
+<text x="549" y="262" font-size="12.5">one theme per concept</text>
+<rect x="736" y="226" width="176" height="48" fill="#e9ecf1" stroke="#d5d9df" stroke-width="1.5"/>
+<text x="745" y="246" font-size="12.5">An answer to the question</text>
+<text x="745" y="262" font-size="12.5">is required</text>
+<rect x="932" y="226" width="176" height="48" fill="#e9ecf1" stroke="#d5d9df" stroke-width="1.5"/>
+<text x="941" y="246" font-size="12.5">Nothing deleted; every</text>
+<text x="941" y="262" font-size="12.5">change logged</text>
+<text x="24" y="318.0" font-size="10.5" font-weight="700" letter-spacing="0.6" fill="#5d6470">RESEARCHER</text>
+<rect x="148" y="282" width="176" height="64" fill="#fde7da" stroke="#c2410c" stroke-width="1.5"/>
+<text x="157" y="302" font-size="12.5"><tspan fill="#c2410c">◆</tspan> Approve rules, answer</text>
+<text x="157" y="318" font-size="12.5">questions</text>
+<rect x="344" y="282" width="176" height="64" fill="#fde7da" stroke="#c2410c" stroke-width="1.5"/>
+<text x="353" y="302" font-size="12.5"><tspan fill="#c2410c">◆</tspan> Review the concepts</text>
+<text x="353" y="318" font-size="12.5">(after every batch of n, if</text>
+<text x="353" y="334" font-size="12.5">batched)</text>
+<rect x="540" y="282" width="176" height="64" fill="#fde7da" stroke="#c2410c" stroke-width="1.5"/>
+<text x="549" y="302" font-size="12.5"><tspan fill="#c2410c">◆</tspan> Regroup, or group</text>
+<text x="549" y="318" font-size="12.5">yourself</text>
+<rect x="736" y="282" width="176" height="64" fill="#fde7da" stroke="#c2410c" stroke-width="1.5"/>
+<text x="745" y="302" font-size="12.5"><tspan fill="#c2410c">◆</tspan> Question the answers</text>
+<rect x="932" y="282" width="176" height="64" fill="#fde7da" stroke="#c2410c" stroke-width="1.5"/>
+<text x="941" y="302" font-size="12.5"><tspan fill="#c2410c">◆</tspan> Accept, or fork from any</text>
+<text x="941" y="318" font-size="12.5">stage</text>
+<text x="1118.0" y="219.0" text-anchor="middle" font-size="16">→</text>
+<rect x="1128" y="167.0" width="128" height="94" fill="#ffffff" stroke="#16191f" stroke-width="1.5"/>
+<text x="1192.0" y="193.0" text-anchor="middle" font-size="12.5" font-weight="700">Output</text>
+<text x="1192.0" y="211.0" text-anchor="middle" font-size="12.5">Data structure</text>
+<text x="1192.0" y="229.0" text-anchor="middle" font-size="12.5">Claim → quote table</text>
+<text x="1192.0" y="247.0" text-anchor="middle" font-size="12.5">Full log</text>
+<rect x="148" y="364" width="16" height="12" fill="#dff2ef" stroke="#0d7d70" stroke-width="1.5"/>
+<text x="172" y="375" font-size="12" fill="#5d6470">given to the model</text>
+<rect x="299.97408" y="364" width="16" height="12" fill="#ffffff" stroke="#16191f" stroke-width="1.5"/>
+<text x="323.97408" y="375" font-size="12" fill="#5d6470">AI (prompted)</text>
+<rect x="426.26432" y="364" width="16" height="12" fill="#e9ecf1" stroke="#d5d9df" stroke-width="1.5"/>
+<text x="450.26432" y="375" font-size="12" fill="#5d6470">checked by the system</text>
+<rect x="606.1984" y="366" width="9" height="9" fill="#c2410c" transform="rotate(45 610.6984 370.5)"/>
+<text x="627.1984" y="375" font-size="12" fill="#5d6470">researcher</text>
+<text x="148" y="394" font-size="12" fill="#5d6470">Parameters: k = interviews used for calibration; n = batch size, optional, chosen from the model&#x27;s context length and the length of the interviews. Without batches, the researcher reviews once after all</text>
+<text x="148" y="411" font-size="12" fill="#5d6470">interviews are coded.</text>
+</svg>
